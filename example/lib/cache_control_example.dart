@@ -99,7 +99,10 @@ SVGAEasyPlayer(
 )''',
               onReload: () {
                 setState(() => _withCacheKey++);
-                Future.delayed(const Duration(milliseconds: 500), _refreshCacheStats);
+                Future.delayed(
+                  const Duration(milliseconds: 500),
+                  _refreshCacheStats,
+                );
               },
             ),
             const SizedBox(height: 24),
@@ -120,7 +123,10 @@ SVGAEasyPlayer(
 )''',
               onReload: () {
                 setState(() => _withoutCacheKey++);
-                Future.delayed(const Duration(milliseconds: 500), _refreshCacheStats);
+                Future.delayed(
+                  const Duration(milliseconds: 500),
+                  _refreshCacheStats,
+                );
               },
             ),
             const SizedBox(height: 24),
@@ -149,7 +155,7 @@ SVGAEasyPlayer(
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -201,16 +207,28 @@ SVGAEasyPlayer(
               ],
             ),
             const Divider(),
-            _buildStatRow('Status', enabled ? 'Enabled ✓' : 'Disabled ✗',
-                enabled ? Colors.green : Colors.red),
+            _buildStatRow(
+              'Status',
+              enabled ? 'Enabled ✓' : 'Disabled ✗',
+              enabled ? Colors.green : Colors.red,
+            ),
             _buildStatRow('Files', '$count', Colors.blue),
             _buildStatRow(
-                'Size', '${(size / 1024).toStringAsFixed(2)} KB', Colors.orange),
-            _buildStatRow('Max Size',
-                '${(maxSize / (1024 * 1024)).toStringAsFixed(0)} MB', Colors.grey),
+              'Size',
+              '${(size / 1024).toStringAsFixed(2)} KB',
+              Colors.orange,
+            ),
+            _buildStatRow(
+              'Max Size',
+              '${(maxSize / (1024 * 1024)).toStringAsFixed(0)} MB',
+              Colors.grey,
+            ),
             _buildStatRow('Max Age', '$maxAge days', Colors.grey),
-            _buildStatRow('Usage',
-                '${((size / maxSize) * 100).toStringAsFixed(1)}%', Colors.purple),
+            _buildStatRow(
+              'Usage',
+              '${((size / maxSize) * 100).toStringAsFixed(1)}%',
+              Colors.purple,
+            ),
           ],
         ),
       ),
@@ -254,11 +272,15 @@ SVGAEasyPlayer(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
-            Text(description,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+            Text(
+              description,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
             const SizedBox(height: 16),
             Container(
               height: 150,
@@ -270,7 +292,9 @@ SVGAEasyPlayer(
               child: Center(
                 child: SVGAEasyPlayer(
                   key: ValueKey(key),
-                  assetsName: useCache ? "assets/angel.svga" : "assets/sample.svga",
+                  assetsName: useCache
+                      ? "assets/angel.svga"
+                      : "assets/sample.svga",
                   useCache: useCache,
                   loops: 0,
                 ),
@@ -306,8 +330,10 @@ SVGAEasyPlayer(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('3. Clear Cache on Dispose',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              '3. Clear Cache on Dispose',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Text(
               'clearCacheOnDispose: true\nAutomatically removes from cache when widget is disposed',
@@ -366,7 +392,9 @@ SVGAEasyPlayer(
                         _clearOnDisposeKey++;
                       });
                       Future.delayed(
-                          const Duration(milliseconds: 500), _refreshCacheStats);
+                        const Duration(milliseconds: 500),
+                        _refreshCacheStats,
+                      );
                     },
                     icon: const Icon(Icons.add),
                     label: const Text('Show Widget'),
@@ -382,8 +410,10 @@ SVGAEasyPlayer(
                     onPressed: _showClearOnDisposeWidget
                         ? () {
                             setState(() => _showClearOnDisposeWidget = false);
-                            Future.delayed(const Duration(milliseconds: 500),
-                                _refreshCacheStats);
+                            Future.delayed(
+                              const Duration(milliseconds: 500),
+                              _refreshCacheStats,
+                            );
                           }
                         : null,
                     icon: const Icon(Icons.delete),
@@ -451,7 +481,9 @@ SVGAEasyPlayer(
                       SVGACache.shared.setEnabled(true);
                       _refreshCacheStats();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Caching enabled globally')),
+                        const SnackBar(
+                          content: Text('Caching enabled globally'),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.check_circle),
@@ -469,7 +501,9 @@ SVGAEasyPlayer(
                       SVGACache.shared.setEnabled(false);
                       _refreshCacheStats();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Caching disabled globally')),
+                        const SnackBar(
+                          content: Text('Caching disabled globally'),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.cancel),
@@ -536,15 +570,17 @@ SVGAEasyPlayer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
           Text(description, style: const TextStyle(fontSize: 13)),
           const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.teal.withOpacity(0.1),
+              color: Colors.teal.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(

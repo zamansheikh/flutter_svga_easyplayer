@@ -13,7 +13,7 @@ class PlaybackModesExample extends StatefulWidget {
 }
 
 class _PlaybackModesExampleState extends State<PlaybackModesExample> {
-  String _infiniteStatus = "Playing infinitely...";
+  final String _infiniteStatus = "Playing infinitely...";
   String _playOnceStatus = "Ready to play once";
   String _repeatNTimesStatus = "Ready to repeat 3 times";
   int _playOnceCount = 0;
@@ -64,7 +64,8 @@ class _PlaybackModesExampleState extends State<PlaybackModesExample> {
             // Mode 1: Infinite Repeat (Default)
             _buildSection(
               title: '1. Infinite Repeat (Default)',
-              description: 'loops: null (default)\nPlays forever without stopping',
+              description:
+                  'loops: null (default)\nPlays forever without stopping',
               status: _infiniteStatus,
               statusColor: Colors.blue,
               child: Container(
@@ -112,7 +113,8 @@ SVGAEasyPlayer(
                     loops: 0, // Play once
                     onFinished: () {
                       setState(() {
-                        _playOnceStatus = "✓ Animation finished! (Played ${_playOnceCount + 1} time${_playOnceCount == 0 ? '' : 's'})";
+                        _playOnceStatus =
+                            "✓ Animation finished! (Played ${_playOnceCount + 1} time${_playOnceCount == 0 ? '' : 's'})";
                       });
                     },
                   ),
@@ -148,7 +150,8 @@ SVGAEasyPlayer(
             // Mode 3: Repeat N Times
             _buildSection(
               title: '3. Repeat 3 Times',
-              description: 'loops: 3\nPlays animation 4 times total (1 initial + 3 repeats)',
+              description:
+                  'loops: 3\nPlays animation 4 times total (1 initial + 3 repeats)',
               status: _repeatNTimesStatus,
               statusColor: Colors.orange,
               child: Container(
@@ -165,7 +168,8 @@ SVGAEasyPlayer(
                     loops: 3, // Repeat 3 times (plays 4 times total)
                     onFinished: () {
                       setState(() {
-                        _repeatNTimesStatus = "✓ All repetitions completed! (Total: ${_repeatNTimesCount + 1} session${_repeatNTimesCount == 0 ? '' : 's'})";
+                        _repeatNTimesStatus =
+                            "✓ All repetitions completed! (Total: ${_repeatNTimesCount + 1} session${_repeatNTimesCount == 0 ? '' : 's'})";
                       });
                     },
                   ),
@@ -267,26 +271,20 @@ SVGAEasyPlayer(
           children: [
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
               description,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: statusColor.withOpacity(0.3)),
+                border: Border.all(color: statusColor.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -344,10 +342,7 @@ SVGAEasyPlayer(
             ),
             if (actionButton != null) ...[
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: actionButton,
-              ),
+              SizedBox(width: double.infinity, child: actionButton),
             ],
           ],
         ),
@@ -366,10 +361,7 @@ SVGAEasyPlayer(
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(
-            description,
-            style: const TextStyle(fontSize: 14),
-          ),
+          Text(description, style: const TextStyle(fontSize: 14)),
           const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
