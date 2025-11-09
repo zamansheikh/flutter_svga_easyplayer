@@ -1,0 +1,12 @@
+include: package:flutter_lints/flutter.yaml
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options
+
+# Exclude generated protobuf files from analysis
+analyzer:
+  exclude:
+    - lib/src/proto/*.pb.dart
+    - lib/src/proto/*.pbenum.dart
+    - lib/src/proto/*.pbjson.dart
+    - lib/src/proto/*.pbserver.dart
