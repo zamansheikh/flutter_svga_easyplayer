@@ -31,7 +31,7 @@ Add **flutter_svga_easyplayer** to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_svga_easyplayer: ^0.0.2
+  flutter_svga_easyplayer: ^0.0.3
 
 ```
 Then, install dependencies:

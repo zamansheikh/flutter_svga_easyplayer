@@ -1,6 +1,6 @@
 name: flutter_svga_easyplayer
 description: "A Flutter package for rendering SVGA animations with dynamic customization, smooth playback, cache control, and powerful EasyPlayer features."
-version: 0.0.2
+version: 0.0.3
 
 homepage: https://github.com/zamansheikh/flutter_svga_easyplayer
 repository: https://github.com/zamansheikh/flutter_svga_easyplayer
@@ -13,7 +13,7 @@ dependencies:
   flutter:
     sdk: flutter
   archive: ^4.0.7
-  http: ^1.5.0
+  http: ^1.6.0
   path_drawing: ^1.0.1
   protobuf: ^5.1.0
   audioplayers: ^6.5.1
@@ -23,5 +23,5 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
+  lints: ^6.0.0
 

@@ -2,7 +2,7 @@
 //  source: svga.proto
 //
 // @dart = '3.7.2'
-// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields,constant_identifier_names,avoid_function_literals_in_foreach_calls
 
 import 'dart:core' as $core;
 import 'dart:core' show int, bool, double, String, List, Map, override;
