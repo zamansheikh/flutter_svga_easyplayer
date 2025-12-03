@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.5] - 2025-12-3
+
+### 🛠 Version Bump
+
+- Bumped version to 0.0.5
+- Maintenance release, no breaking changes
+- Updated dependencies in `pubspec.yaml`
+
 ## [0.0.4] - 2025-12-03
 
 ### 🛠 Fixes & Improvements
