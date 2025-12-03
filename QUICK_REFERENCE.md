@@ -3,28 +3,45 @@
 ## 🎯 Three Playback Modes + Cache Control
 
 ### 1️⃣ Infinite Loop (Default)
+
 ```dart
 SVGAEasyPlayer(assetsName: "assets/animation.svga")
 ```
+
 **Behavior:** Loops forever  
 **Use for:** Loading indicators, background animations
 
 ---
 
 ### 2️⃣ Play Once
+
 ```dart
 SVGAEasyPlayer(
   assetsName: "assets/animation.svga",
+
   loops: 0,
   onFinished: () => print("Done!"),
 )
 ```
+
 **Behavior:** Plays 1 time, then stops  
 **Use for:** Splash screens, onboarding, celebrations
+
+**For Mute Audio:** Pass isMute: true
+
+```dart
+SVGAEasyPlayer(
+  assetsName: "assets/animation.svga",
+  isMute: true,
+  loops: 0,
+  onFinished: () => print("Done!"),
+)
+```
 
 ---
 
 ### 3️⃣ Repeat N Times
+
 ```dart
 SVGAEasyPlayer(
   assetsName: "assets/animation.svga",
@@ -32,6 +49,7 @@ SVGAEasyPlayer(
   onFinished: () => print("Finished all repeats!"),
 )
 ```
+
 **Behavior:** Plays (N + 1) times, then stops  
 **Use for:** Notifications, limited celebrations
 
@@ -40,6 +58,7 @@ SVGAEasyPlayer(
 ## 💾 Cache Control
 
 ### With Cache (Default - Faster)
+
 ```dart
 SVGAEasyPlayer(
   assetsName: "assets/animation.svga",
@@ -48,6 +67,7 @@ SVGAEasyPlayer(
 ```
 
 ### Without Cache (Always Fresh)
+
 ```dart
 SVGAEasyPlayer(
   resUrl: "https://api.example.com/animation.svga",
@@ -56,6 +76,7 @@ SVGAEasyPlayer(
 ```
 
 ### Auto-Cleanup on Dispose
+
 ```dart
 SVGAEasyPlayer(
   assetsName: "assets/one-time.svga",
@@ -68,33 +89,34 @@ SVGAEasyPlayer(
 
 ## 📊 Complete Parameter Reference
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `assetsName` | `String?` | `null` | Asset path to SVGA file |
-| `resUrl` | `String?` | `null` | Network URL to SVGA file |
-| `fit` | `BoxFit` | `BoxFit.contain` | How to fit animation |
-| `loops` | `int?` | `null` | Repeat count (null=∞, 0=once, N=N+1 times) |
-| `onFinished` | `VoidCallback?` | `null` | Called when animation completes |
-| `useCache` | `bool` | `true` | Use caching for this animation |
-| `clearCacheOnDispose` | `bool` | `false` | Clear cache when widget disposed |
+| Parameter             | Type            | Default          | Description                                |
+| --------------------- | --------------- | ---------------- | ------------------------------------------ |
+| `assetsName`          | `String?`       | `null`           | Asset path to SVGA file                    |
+| `resUrl`              | `String?`       | `null`           | Network URL to SVGA file                   |
+| `fit`                 | `BoxFit`        | `BoxFit.contain` | How to fit animation                       |
+| `loops`               | `int?`          | `null`           | Repeat count (null=∞, 0=once, N=N+1 times) |
+| `onFinished`          | `VoidCallback?` | `null`           | Called when animation completes            |
+| `useCache`            | `bool`          | `true`           | Use caching for this animation             |
+| `clearCacheOnDispose` | `bool`          | `false`          | Clear cache when widget disposed           |
 
 ---
 
 ## 📋 Loops Behavior
 
-| `loops` Value | Total Plays | Calls `onFinished` |
-|--------------|-------------|-------------------|
-| `null` (default) | ∞ (Infinite) | Never ❌ |
-| `0` | 1 time | Yes ✅ |
-| `1` | 2 times | Yes ✅ |
-| `3` | 4 times | Yes ✅ |
-| `N` | N + 1 times | Yes ✅ |
+| `loops` Value    | Total Plays  | Calls `onFinished` |
+| ---------------- | ------------ | ------------------ |
+| `null` (default) | ∞ (Infinite) | Never ❌           |
+| `0`              | 1 time       | Yes ✅             |
+| `1`              | 2 times      | Yes ✅             |
+| `3`              | 4 times      | Yes ✅             |
+| `N`              | N + 1 times  | Yes ✅             |
 
 ---
 
 ## 🔥 Quick Examples
 
 ### Auto-Navigate After Animation
+
 ```dart
 SVGAEasyPlayer(
   assetsName: "assets/intro.svga",
@@ -108,6 +130,7 @@ SVGAEasyPlayer(
 ```
 
 ### One-Time Celebration with Cleanup
+
 ```dart
 SVGAEasyPlayer(
   assetsName: "assets/achievement.svga",
@@ -118,6 +141,7 @@ SVGAEasyPlayer(
 ```
 
 ### Dynamic Content (No Cache)
+
 ```dart
 SVGAEasyPlayer(
   resUrl: "https://api.example.com/live-data.svga",
@@ -127,6 +151,7 @@ SVGAEasyPlayer(
 ```
 
 ### Replay Button
+
 ```dart
 int _key = 0;
 
@@ -146,6 +171,7 @@ ElevatedButton(
 ```
 
 ### Privacy-Sensitive Animation
+
 ```dart
 SVGAEasyPlayer(
   resUrl: "https://secure.example.com/user-data.svga",
@@ -160,26 +186,31 @@ SVGAEasyPlayer(
 ## ⚡ Common Patterns
 
 **Loading indicator (cached, infinite):**
+
 ```dart
 loops: null, useCache: true
 ```
 
 **One-time splash (cached, auto-nav):**
+
 ```dart
 loops: 0, useCache: true, onFinished: () => navigate()
 ```
 
 **Temporary effect (no cache, auto-cleanup):**
+
 ```dart
 loops: 0, useCache: false, clearCacheOnDispose: true
 ```
 
 **Dynamic content (no cache, infinite):**
+
 ```dart
 loops: null, useCache: false
 ```
 
 **Celebration (cached, limited repeats, cleanup):**
+
 ```dart
 loops: 2, useCache: true, clearCacheOnDispose: true
 ```
@@ -233,12 +264,13 @@ SVGACache.shared.setMaxAge(Duration(days: 7));
 ## 🎮 Try It!
 
 Run the example app:
+
 ```bash
 cd example && flutter run
 ```
 
 Then explore:
+
 - **"Playback Modes Example"** - See all playback modes
 - **"Cache Control in EasyPlayer"** - Interactive cache demo
 - **"Cache Example & Configuration"** - Global cache management
-

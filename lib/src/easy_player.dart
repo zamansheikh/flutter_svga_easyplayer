@@ -20,17 +20,22 @@ class SVGAEasyPlayer extends StatefulWidget {
   /// Whether to use caching for this animation.
   /// - `true` (default): Use cache if available, store to cache after loading
   /// - `false`: Bypass cache completely, always load fresh
-  /// 
-  /// Note: This only affects this specific widget instance. 
+  ///
+  /// Note: This only affects this specific widget instance.
   /// Global cache settings via `SVGACache.shared` still apply.
   final bool useCache;
 
   /// Clear this animation from cache when the widget is disposed.
   /// - `false` (default): Keep cached data for future use
   /// - `true`: Remove from cache when widget is disposed
-  /// 
+  ///
   /// Useful for one-time animations that won't be reused.
   final bool clearCacheOnDispose;
+
+  /// Whether to mute the audio of the animation.
+  /// - `false` (default): Play audio if available
+  /// - `true`: Mute audio
+  final bool isMute;
 
   const SVGAEasyPlayer({
     super.key,
@@ -41,6 +46,7 @@ class SVGAEasyPlayer extends StatefulWidget {
     this.onFinished,
     this.useCache = true,
     this.clearCacheOnDispose = false,
+    this.isMute = false,
   });
 
   @override
@@ -58,6 +64,7 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
   void initState() {
     super.initState();
     animationController = SVGAAnimationController(vsync: this);
+    animationController!.isMute = widget.isMute;
     animationController!.addStatusListener(_onAnimationStatus);
     _tryDecodeSvga();
   }
@@ -65,6 +72,9 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
   @override
   void didUpdateWidget(covariant SVGAEasyPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.isMute != widget.isMute) {
+      animationController?.isMute = widget.isMute;
+    }
     if (oldWidget.resUrl != widget.resUrl ||
         oldWidget.assetsName != widget.assetsName) {
       _tryDecodeSvga();
@@ -76,10 +86,7 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
     if (animationController == null) {
       return Container();
     }
-    return SVGAImage(
-      animationController!,
-      fit: widget.fit,
-    );
+    return SVGAImage(animationController!, fit: widget.fit);
   }
 
   @override
@@ -87,12 +94,12 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
     animationController?.removeStatusListener(_onAnimationStatus);
     animationController?.dispose();
     animationController = null;
-    
+
     // Clear cache if requested
     if (widget.clearCacheOnDispose) {
       _clearCacheForCurrentSource();
     }
-    
+
     super.dispose();
   }
 
@@ -112,10 +119,11 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
   void _onAnimationStatus(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
       _currentLoopCount++;
-      
+
       // Check if we should continue looping
-      final shouldContinue = widget.loops == null || _currentLoopCount <= widget.loops!;
-      
+      final shouldContinue =
+          widget.loops == null || _currentLoopCount <= widget.loops!;
+
       if (shouldContinue) {
         // Continue animation
         if (mounted && animationController != null) {
@@ -140,40 +148,40 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
       return;
     }
 
-    decode.then((videoItem) {
-      if (mounted && animationController != null) {
-        _currentLoopCount = 0; // Reset loop counter
-        animationController!.videoItem = videoItem;
-        
-        // Start animation based on loops setting
-        if (widget.loops == null) {
-          // Infinite repeat (default behavior)
-          animationController!.repeat();
-        } else {
-          // Play once or repeat n times
-          animationController!.forward(from: 0.0);
-        }
-      } else {
-        videoItem.dispose();
-      }
-    }).catchError(
-      (e, stack) {
-        FlutterError.reportError(
-          FlutterErrorDetails(
-            exception: e,
-            stack: stack,
-            library: 'SVGAEasyPlayer',
-            context: ErrorDescription('during _tryDecodeSvga'),
-            informationCollector: () => [
-              if (widget.resUrl != null)
-                StringProperty('resUrl', widget.resUrl),
-              if (widget.assetsName != null)
-                StringProperty('assetsName', widget.assetsName),
-            ],
-          ),
-        );
-      },
-    );
+    decode
+        .then((videoItem) {
+          if (mounted && animationController != null) {
+            _currentLoopCount = 0; // Reset loop counter
+            animationController!.videoItem = videoItem;
+
+            // Start animation based on loops setting
+            if (widget.loops == null) {
+              // Infinite repeat (default behavior)
+              animationController!.repeat();
+            } else {
+              // Play once or repeat n times
+              animationController!.forward(from: 0.0);
+            }
+          } else {
+            videoItem.dispose();
+          }
+        })
+        .catchError((e, stack) {
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: e,
+              stack: stack,
+              library: 'SVGAEasyPlayer',
+              context: ErrorDescription('during _tryDecodeSvga'),
+              informationCollector: () => [
+                if (widget.resUrl != null)
+                  StringProperty('resUrl', widget.resUrl),
+                if (widget.assetsName != null)
+                  StringProperty('assetsName', widget.assetsName),
+              ],
+            ),
+          );
+        });
   }
 
   /// Load SVGA from URL with cache control

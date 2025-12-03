@@ -4,8 +4,9 @@ import 'package:flutter_svga_easyplayer/flutter_svga_easyplayer.dart';
 
 void main() {
   group('SVGAEasyPlayer Playback Modes Tests', () {
-    testWidgets('SVGAEasyPlayer builds with default infinite loop',
-        (WidgetTester tester) async {
+    testWidgets('SVGAEasyPlayer builds with default infinite loop', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -20,8 +21,9 @@ void main() {
       expect(find.byType(SVGAEasyPlayer), findsOneWidget);
     });
 
-    testWidgets('SVGAEasyPlayer builds with loops set to 0 (play once)',
-        (WidgetTester tester) async {
+    testWidgets('SVGAEasyPlayer builds with loops set to 0 (play once)', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -41,8 +43,9 @@ void main() {
       // This just verifies the widget builds correctly
     });
 
-    testWidgets('SVGAEasyPlayer builds with loops set to 3 (repeat 3 times)',
-        (WidgetTester tester) async {
+    testWidgets('SVGAEasyPlayer builds with loops set to 3 (repeat 3 times)', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -60,16 +63,14 @@ void main() {
       expect(find.byType(SVGAEasyPlayer), findsOneWidget);
     });
 
-    testWidgets('SVGAEasyPlayer accepts both resUrl and assetsName',
-        (WidgetTester tester) async {
+    testWidgets('SVGAEasyPlayer accepts both resUrl and assetsName', (
+      WidgetTester tester,
+    ) async {
       // Test with assetsName
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: SVGAEasyPlayer(
-              assetsName: "assets/sample.svga",
-              loops: 0,
-            ),
+            body: SVGAEasyPlayer(assetsName: "assets/sample.svga", loops: 0),
           ),
         ),
       );
@@ -91,8 +92,9 @@ void main() {
       expect(find.byType(SVGAEasyPlayer), findsOneWidget);
     });
 
-    testWidgets('SVGAEasyPlayer can be created without onFinished callback',
-        (WidgetTester tester) async {
+    testWidgets('SVGAEasyPlayer can be created without onFinished callback', (
+      WidgetTester tester,
+    ) async {
       // Should work fine without callback
       await tester.pumpWidget(
         const MaterialApp(
@@ -109,8 +111,9 @@ void main() {
       expect(find.byType(SVGAEasyPlayer), findsOneWidget);
     });
 
-    testWidgets('SVGAEasyPlayer accepts different BoxFit values',
-        (WidgetTester tester) async {
+    testWidgets('SVGAEasyPlayer accepts different BoxFit values', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -150,10 +153,7 @@ void main() {
 
     test('onFinished callback is optional', () {
       // Should compile without callback
-      const player = SVGAEasyPlayer(
-        assetsName: "assets/sample.svga",
-        loops: 0,
-      );
+      const player = SVGAEasyPlayer(assetsName: "assets/sample.svga", loops: 0);
 
       expect(player.onFinished, isNull);
     });

@@ -107,7 +107,7 @@ class MovieParams extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static MovieParams create() => MovieParams._();
   MovieParams createEmptyInstance() => create();
-  static $pb.PbList<MovieParams> createRepeated() => $pb.PbList<MovieParams>();
+  static $core.List<MovieParams> createRepeated() => <MovieParams>[];
   @$core.pragma('dart2js:noInline')
   static MovieParams getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<MovieParams>(create);
@@ -243,8 +243,7 @@ class SpriteEntity extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static SpriteEntity create() => SpriteEntity._();
   SpriteEntity createEmptyInstance() => create();
-  static $pb.PbList<SpriteEntity> createRepeated() =>
-      $pb.PbList<SpriteEntity>();
+  static $core.List<SpriteEntity> createRepeated() => <SpriteEntity>[];
   @$core.pragma('dart2js:noInline')
   static SpriteEntity getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<SpriteEntity>(create);
@@ -384,7 +383,7 @@ class AudioEntity extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static AudioEntity create() => AudioEntity._();
   AudioEntity createEmptyInstance() => create();
-  static $pb.PbList<AudioEntity> createRepeated() => $pb.PbList<AudioEntity>();
+  static $core.List<AudioEntity> createRepeated() => <AudioEntity>[];
   @$core.pragma('dart2js:noInline')
   static AudioEntity getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<AudioEntity>(create);
@@ -541,7 +540,7 @@ class Layout extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static Layout create() => Layout._();
   Layout createEmptyInstance() => create();
-  static $pb.PbList<Layout> createRepeated() => $pb.PbList<Layout>();
+  static $core.List<Layout> createRepeated() => <Layout>[];
   @$core.pragma('dart2js:noInline')
   static Layout getDefault() =>
       _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Layout>(create);
@@ -708,7 +707,7 @@ class Transform extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static Transform create() => Transform._();
   Transform createEmptyInstance() => create();
-  static $pb.PbList<Transform> createRepeated() => $pb.PbList<Transform>();
+  static $core.List<Transform> createRepeated() => <Transform>[];
   @$core.pragma('dart2js:noInline')
   static Transform getDefault() =>
       _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Transform>(create);
@@ -845,8 +844,8 @@ class ShapeEntity_ShapeArgs extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ShapeEntity_ShapeArgs create() => ShapeEntity_ShapeArgs._();
   ShapeEntity_ShapeArgs createEmptyInstance() => create();
-  static $pb.PbList<ShapeEntity_ShapeArgs> createRepeated() =>
-      $pb.PbList<ShapeEntity_ShapeArgs>();
+  static $core.List<ShapeEntity_ShapeArgs> createRepeated() =>
+      <ShapeEntity_ShapeArgs>[];
   @$core.pragma('dart2js:noInline')
   static ShapeEntity_ShapeArgs getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ShapeEntity_ShapeArgs>(create);
@@ -969,8 +968,8 @@ class ShapeEntity_RectArgs extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ShapeEntity_RectArgs create() => ShapeEntity_RectArgs._();
   ShapeEntity_RectArgs createEmptyInstance() => create();
-  static $pb.PbList<ShapeEntity_RectArgs> createRepeated() =>
-      $pb.PbList<ShapeEntity_RectArgs>();
+  static $core.List<ShapeEntity_RectArgs> createRepeated() =>
+      <ShapeEntity_RectArgs>[];
   @$core.pragma('dart2js:noInline')
   static ShapeEntity_RectArgs getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ShapeEntity_RectArgs>(create);
@@ -1133,8 +1132,8 @@ class ShapeEntity_EllipseArgs extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ShapeEntity_EllipseArgs create() => ShapeEntity_EllipseArgs._();
   ShapeEntity_EllipseArgs createEmptyInstance() => create();
-  static $pb.PbList<ShapeEntity_EllipseArgs> createRepeated() =>
-      $pb.PbList<ShapeEntity_EllipseArgs>();
+  static $core.List<ShapeEntity_EllipseArgs> createRepeated() =>
+      <ShapeEntity_EllipseArgs>[];
   @$core.pragma('dart2js:noInline')
   static ShapeEntity_EllipseArgs getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ShapeEntity_EllipseArgs>(create);
@@ -1286,8 +1285,8 @@ class ShapeEntity_ShapeStyle_RGBAColor extends $pb.GeneratedMessage {
   static ShapeEntity_ShapeStyle_RGBAColor create() =>
       ShapeEntity_ShapeStyle_RGBAColor._();
   ShapeEntity_ShapeStyle_RGBAColor createEmptyInstance() => create();
-  static $pb.PbList<ShapeEntity_ShapeStyle_RGBAColor> createRepeated() =>
-      $pb.PbList<ShapeEntity_ShapeStyle_RGBAColor>();
+  static $core.List<ShapeEntity_ShapeStyle_RGBAColor> createRepeated() =>
+      <ShapeEntity_ShapeStyle_RGBAColor>[];
   @$core.pragma('dart2js:noInline')
   static ShapeEntity_ShapeStyle_RGBAColor getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ShapeEntity_ShapeStyle_RGBAColor>(
@@ -1506,8 +1505,8 @@ class ShapeEntity_ShapeStyle extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ShapeEntity_ShapeStyle create() => ShapeEntity_ShapeStyle._();
   ShapeEntity_ShapeStyle createEmptyInstance() => create();
-  static $pb.PbList<ShapeEntity_ShapeStyle> createRepeated() =>
-      $pb.PbList<ShapeEntity_ShapeStyle>();
+  static $core.List<ShapeEntity_ShapeStyle> createRepeated() =>
+      <ShapeEntity_ShapeStyle>[];
   @$core.pragma('dart2js:noInline')
   static ShapeEntity_ShapeStyle getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ShapeEntity_ShapeStyle>(create);
@@ -1751,7 +1750,7 @@ class ShapeEntity extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ShapeEntity create() => ShapeEntity._();
   ShapeEntity createEmptyInstance() => create();
-  static $pb.PbList<ShapeEntity> createRepeated() => $pb.PbList<ShapeEntity>();
+  static $core.List<ShapeEntity> createRepeated() => <ShapeEntity>[];
   @$core.pragma('dart2js:noInline')
   static ShapeEntity getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ShapeEntity>(create);
@@ -1946,7 +1945,7 @@ class FrameEntity extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static FrameEntity create() => FrameEntity._();
   FrameEntity createEmptyInstance() => create();
-  static $pb.PbList<FrameEntity> createRepeated() => $pb.PbList<FrameEntity>();
+  static $core.List<FrameEntity> createRepeated() => <FrameEntity>[];
   @$core.pragma('dart2js:noInline')
   static FrameEntity getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<FrameEntity>(create);
@@ -2117,7 +2116,7 @@ class MovieEntity extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static MovieEntity create() => MovieEntity._();
   MovieEntity createEmptyInstance() => create();
-  static $pb.PbList<MovieEntity> createRepeated() => $pb.PbList<MovieEntity>();
+  static $core.List<MovieEntity> createRepeated() => <MovieEntity>[];
   @$core.pragma('dart2js:noInline')
   static MovieEntity getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<MovieEntity>(create);

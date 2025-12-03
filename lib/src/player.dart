@@ -60,9 +60,24 @@ class SVGAAnimationController extends AnimationController {
   MovieEntity? _videoItem;
   final List<SVGAAudioLayer> _audioLayers = [];
   bool _canvasNeedsClear = false;
+  bool _isMute = false;
 
   SVGAAnimationController({required super.vsync})
     : super(duration: Duration.zero);
+
+  bool get isMute => _isMute;
+  set isMute(bool value) {
+    if (_isMute == value) return;
+    _isMute = value;
+    _updateAudioVolume();
+  }
+
+  void _updateAudioVolume() {
+    final volume = _isMute ? 0.0 : 1.0;
+    for (final audio in _audioLayers) {
+      audio.setVolume(volume);
+    }
+  }
 
   set videoItem(MovieEntity? value) {
     assert(!_isDisposed, '$this has been disposed!');
@@ -94,7 +109,9 @@ class SVGAAnimationController extends AnimationController {
       );
 
       for (var audio in value.audios) {
-        _audioLayers.add(SVGAAudioLayer(audio, value));
+        final layer = SVGAAudioLayer(audio, value);
+        layer.setVolume(_isMute ? 0.0 : 1.0);
+        _audioLayers.add(layer);
       }
     } else {
       duration = Duration.zero;

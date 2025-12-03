@@ -71,6 +71,11 @@ class SVGAAudioLayer {
     return _player.state == PlayerState.paused;
   }
 
+  Future<void> setVolume(double volume) async {
+    if (_disposed) return;
+    await _player.setVolume(volume);
+  }
+
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
