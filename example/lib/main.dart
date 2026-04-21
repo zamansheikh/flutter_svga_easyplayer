@@ -7,8 +7,26 @@ import 'package:flutter_svga_easyplayer/flutter_svga_easyplayer.dart';
 import 'cache_example.dart';
 import 'cache_control_example.dart';
 import 'playback_modes_example.dart';
+import 'precache_example.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Fire-and-forget: silently warm the cache for animations we know the
+  // user will hit soon. The parser reads from the same cache on playback,
+  // so these URLs render instantly the first time they are shown.
+  SVGAPrecacheManager.shared.precache(
+    const [
+      'https://cdn.jsdelivr.net/gh/svga/SVGA-Samples@master/EmptyState.svga',
+      'https://cdn.jsdelivr.net/gh/svga/SVGA-Samples@master/PinJump.svga',
+      'https://cdn.jsdelivr.net/gh/svga/SVGA-Samples@master/TwitterHeart.svga',
+      'https://cdn.jsdelivr.net/gh/svga/SVGA-Samples@master/heartbeat.svga',
+    ],
+    delay: const Duration(seconds: 1),
+    concurrency: 3,
+    timeout: const Duration(seconds: 15),
+  );
+
   runApp(MyApp());
 }
 
@@ -171,6 +189,29 @@ class _HomeScreenState extends State<HomeScreen> {
               onSubmitted: (_) => _loadSvgaFromTextField(),
             ),
             SizedBox(height: 16),
+
+            // Precache Example Button (NEW)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const PrecacheExample(),
+                    ),
+                  );
+                },
+                icon: Icon(Icons.bolt),
+                label: Text('Silent Precache (New!)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+
+            SizedBox(height: 8),
 
             // Cache Example Button
             SizedBox(

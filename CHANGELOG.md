@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.6] - 2026-04-21
+
+### ✨ New Features
+
+- **Silent Precaching (`SVGAPrecacheManager`)**: Pre-fetch a list of SVGA
+  URLs or asset paths into the persistent cache at app startup so playback
+  starts instantly the first time a user opens a screen that uses them.
+  - Fire-and-forget API: `SVGAPrecacheManager.shared.precache([...])`
+  - Optional `delay` so precaching does not contend with startup traffic.
+  - Configurable `concurrency` (default 3) with per-URL deduplication.
+  - Optional per-request `timeout` and per-entry `onProgress` callback.
+  - `skipIfCached` avoids re-downloading valid cache entries.
+  - `cancel()` stops further work without interrupting the player.
+- **`SVGACache.contains(source)`**: Cheap async lookup to check whether a
+  valid (non-expired) cache entry exists for a given URL or `assets:` key.
+
+### 🛠 Improvements
+
+- Bumped `archive` to `^4.0.9`, `audioplayers` to `^6.6.0`, and `lints` to
+  `^6.1.0` in `pubspec.yaml`.
+
+### ✅ Compatibility
+
+- Fully backward compatible. Existing `SVGAEasyPlayer`, `SVGAParser`, and
+  `SVGACache` APIs behave exactly as before — precaching just populates the
+  same cache the parser already reads from on playback.
+
 ## [0.0.5] - 2025-12-3
 
 ### 🛠 Version Bump

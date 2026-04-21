@@ -85,6 +85,21 @@ class SVGACache {
     return age <= _maxAge;
   }
 
+  /// Whether a valid (non-expired) cache entry exists for [source].
+  ///
+  /// For network URLs, pass the raw URL. For assets, pass
+  /// `'assets:<path>'` to match the key used by [SVGAParser.decodeFromAssets].
+  Future<bool> contains(String source) async {
+    if (!_enabled) return false;
+    try {
+      final cacheFile = await _getCacheFile(source);
+      if (cacheFile == null) return false;
+      return await _isCacheValid(cacheFile);
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Get cached raw bytes if available and valid
   Future<Uint8List?> getRawBytes(String source) async {
     if (!_enabled) return null;

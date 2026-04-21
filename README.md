@@ -14,6 +14,8 @@ SVGA is a lightweight and powerful animation format used for **dynamic UI effect
 
 ✔️ Parse and render **SVGA animations** in Flutter.  
 ✔️ Load SVGA files from **assets** and **network URLs**.  
+⚡ **Silent background precaching** — hand a list of URLs at startup (or any
+    screen), they get warmed into the cache, and later playback is instant.
 ✔️ **Intelligent caching system** for faster loading and reduced network usage.  
 ✔️ **Per-widget cache control**: Enable/disable caching and auto-cleanup per player.  
 ✔️ **Playback control modes**: infinite loop, play once, or repeat N times with completion callbacks.  
@@ -32,7 +34,7 @@ Add **flutter_svga_easyplayer** to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_svga_easyplayer: ^0.0.4
+  flutter_svga_easyplayer: ^0.0.6
 ```
 
 Then, install dependencies:
@@ -140,6 +142,130 @@ SVGAEasyPlayer(
   isMute: true, // Mutes the audio
 )
 ```
+
+---
+
+## ⚡ **Silent Background Precaching (NEW in 0.0.6!)**
+
+Pass a list of URLs (or asset paths) and the package **silently downloads
+and caches them in the background**. Later, when a `SVGAEasyPlayer` is
+rendered with the same URL, it plays **instantly from the local cache** —
+no network round-trip, no loading flash.
+
+The parser already reads from the same cache on playback, so there is
+**nothing extra to wire up** at the widget side.
+
+### ✅ At app startup (inside `main()`)
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_svga_easyplayer/flutter_svga_easyplayer.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Fire-and-forget: warms the cache silently in the background.
+  SVGAPrecacheManager.shared.precache(
+    const [
+      'https://cdn.example.com/a.svga',
+      'https://cdn.example.com/b.svga',
+      'https://cdn.example.com/c.svga',
+    ],
+    delay: const Duration(seconds: 1),   // optional: wait for startup to settle
+    concurrency: 3,                       // optional: max parallel downloads
+    timeout: const Duration(seconds: 15), // optional: per-URL timeout
+  );
+
+  runApp(const MyApp());
+}
+```
+
+### ✅ Anywhere else (any screen, any time)
+
+You are **not limited to `main()`**. Trigger precache from `initState`, a
+button tap, after login, or whenever your app decides it needs to warm
+the cache:
+
+```dart
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    // Fire-and-forget: warms the cache for animations this screen will use.
+    SVGAPrecacheManager.shared.precache(const [
+      'https://cdn.example.com/home_hero.svga',
+      'https://cdn.example.com/home_badge.svga',
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Instant playback the first time it shows — pre-cached above.
+    return const SVGAEasyPlayer(
+      resUrl: 'https://cdn.example.com/home_hero.svga',
+    );
+  }
+}
+```
+
+### ✅ With progress reporting & result
+
+```dart
+final result = await SVGAPrecacheManager.shared.precache(
+  urls,
+  onProgress: (done, total, url, ok) {
+    debugPrint('[$done/$total] ${ok ? "OK" : "FAIL"}  $url');
+  },
+);
+
+debugPrint('precache result: $result');
+// SVGAPrecacheResult(total: 6, completed: 6, hits: 2, fetched: 4, failed: 0, cancelled: false)
+```
+
+### ✅ From bundled assets
+
+```dart
+SVGAPrecacheManager.shared.precacheAssets(const [
+  'assets/intro.svga',
+  'assets/celebration.svga',
+]);
+```
+
+### ✅ Cancel an in-flight batch
+
+```dart
+SVGAPrecacheManager.shared.cancel();
+```
+
+### 🧠 Why it’s smart
+
+- ✅ **Skip-if-cached** — URLs already in the cache are detected and
+  skipped without any network I/O. Safe to call on every app launch.
+- ✅ **Deduplicated** — if two batches request the same URL at the same
+  time, only one download happens.
+- ✅ **Fails gracefully** — network errors, asset misses, timeouts or
+  disk errors are swallowed silently; one bad URL never blocks the rest.
+- ✅ **Honours global settings** — respects `SVGACache.shared`'s
+  enable flag, `maxCacheSize`, and `maxAge`.
+- ✅ **Cache key parity** — uses the exact same cache keys as the
+  parser, so `SVGAEasyPlayer(resUrl: url)` automatically hits it.
+
+### 🔎 API at a glance
+
+| Call | What it does |
+| --- | --- |
+| `SVGAPrecacheManager.shared.precache(urls, ...)` | Warm the cache with a list of network URLs. |
+| `SVGAPrecacheManager.shared.precacheAssets(paths, ...)` | Warm the cache with a list of bundled asset paths. |
+| `SVGAPrecacheManager.shared.cancel()` | Stop picking up new items from in-flight batches. |
+| `SVGAPrecacheManager.shared.isRunning` | `true` while any batch is still running. |
+| `SVGACache.shared.contains(source)` | Cheap async check whether a valid cache entry exists. |
 
 ---
 
