@@ -6,6 +6,16 @@ import 'package:http/http.dart' as http;
 
 import 'cache.dart';
 
+/// Cheap sanity check for an SVGA payload. SVGA 2.x is a zlib-deflated
+/// protobuf, so the first byte of a valid file has its low nibble equal to
+/// `8` (DEFLATE compression method in the zlib CMF byte). This catches the
+/// common case of a CDN returning an HTML error page with a 200 status, so
+/// we never poison the cache with it.
+bool _looksLikeSvgaPayload(Uint8List bytes) {
+  if (bytes.length < 2) return false;
+  return (bytes[0] & 0x0F) == 0x08;
+}
+
 /// Callback fired each time a precache entry finishes (success or failure).
 ///
 /// * [completed] — number of entries processed so far.
@@ -209,12 +219,15 @@ class SVGAPrecacheManager {
             success = true;
           } else if (isAsset) {
             final data = await rootBundle.load(source);
-            await SVGACache.shared.putRawBytes(
-              cacheKey,
-              data.buffer.asUint8List(),
-            );
-            fetched++;
-            success = true;
+            final bytes = data.buffer.asUint8List();
+            if (_looksLikeSvgaPayload(bytes)) {
+              await SVGACache.shared.putRawBytes(cacheKey, bytes);
+              fetched++;
+              success = true;
+            } else {
+              // Asset is not a valid SVGA payload — don't cache garbage.
+              failed++;
+            }
           } else {
             final uri = Uri.parse(source);
             final request = http.get(uri);
@@ -222,12 +235,15 @@ class SVGAPrecacheManager {
                 ? await request.timeout(timeout)
                 : await request;
             if (response.statusCode >= 200 && response.statusCode < 300) {
-              await SVGACache.shared.putRawBytes(
-                cacheKey,
-                Uint8List.fromList(response.bodyBytes),
-              );
-              fetched++;
-              success = true;
+              final bytes = Uint8List.fromList(response.bodyBytes);
+              if (_looksLikeSvgaPayload(bytes)) {
+                await SVGACache.shared.putRawBytes(cacheKey, bytes);
+                fetched++;
+                success = true;
+              } else {
+                // 200-with-HTML-error-page and similar — skip, do not cache.
+                failed++;
+              }
             } else {
               failed++;
             }

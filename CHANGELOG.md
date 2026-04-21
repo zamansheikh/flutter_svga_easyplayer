@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.7] - 2026-04-21
+
+### 🩹 Fixes
+
+- **Cache-poisoning hardening**: The parser now caches raw bytes *only
+  after* a successful decode, and if a cached entry fails to decode (e.g.
+  a previously poisoned entry) it is automatically evicted and re-fetched
+  once. This eliminates the recurring
+  `Exception caught by SVGAEasyPlayer: Filter error, bad data` log that
+  could appear when a CDN momentarily served a non-SVGA payload (HTML
+  error page with 200 status, truncated file, redirect, etc.).
+- **Precache payload validation**: `SVGAPrecacheManager` verifies the
+  zlib magic byte of each downloaded/loaded payload before writing to the
+  cache. Bad responses are counted as `failed` and never stored.
+
+### ✅ Compatibility
+
+- Fully backward compatible. No public API changes.
+
 ## [0.0.6] - 2026-04-21
 
 ### ✨ New Features

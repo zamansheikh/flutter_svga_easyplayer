@@ -20,39 +20,47 @@ class SVGAParser {
   /// Download animation file from remote server, and decode it.
   /// Automatically uses cache if available and enabled.
   Future<MovieEntity> decodeFromURL(String url) async {
-    // Try to get from cache first
+    // Try to get from cache first. If the cached bytes are corrupt (e.g. a
+    // previously poisoned entry), evict and fall through to a fresh fetch.
     final cachedBytes = await SVGACache.shared.getRawBytes(url);
     if (cachedBytes != null) {
-      return decodeFromBuffer(cachedBytes);
+      try {
+        return await decodeFromBuffer(cachedBytes);
+      } catch (_) {
+        await SVGACache.shared.remove(url);
+      }
     }
 
-    // Download and cache
     final response = await get(Uri.parse(url));
     final bytes = response.bodyBytes;
 
-    // Cache the raw response bytes for future use
+    // Decode first, then cache — so a bad payload (e.g. an HTML error page
+    // served with 200) never poisons the cache for future reads.
+    final movie = await decodeFromBuffer(bytes);
     await SVGACache.shared.putRawBytes(url, Uint8List.fromList(bytes));
-
-    return decodeFromBuffer(bytes);
+    return movie;
   }
 
   /// Download animation file from bundle assets, and decode it.
   /// Automatically uses cache if available and enabled.
   Future<MovieEntity> decodeFromAssets(String path) async {
-    // Try to get from cache first
-    final cachedBytes = await SVGACache.shared.getRawBytes('assets:$path');
+    final cacheKey = 'assets:$path';
+    final cachedBytes = await SVGACache.shared.getRawBytes(cacheKey);
     if (cachedBytes != null) {
-      return decodeFromBuffer(cachedBytes);
+      try {
+        return await decodeFromBuffer(cachedBytes);
+      } catch (_) {
+        await SVGACache.shared.remove(cacheKey);
+      }
     }
 
-    // Load from assets and cache
     final byteData = await rootBundle.load(path);
     final bytes = byteData.buffer.asUint8List();
 
-    // Cache the asset bytes for future use
-    await SVGACache.shared.putRawBytes('assets:$path', bytes);
-
-    return decodeFromBuffer(bytes);
+    // Decode first, then cache — see note in [decodeFromURL].
+    final movie = await decodeFromBuffer(bytes);
+    await SVGACache.shared.putRawBytes(cacheKey, bytes);
+    return movie;
   }
 
   /// Download animation file from buffer, and decode it.
