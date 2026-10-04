@@ -1,588 +1,194 @@
-<h1 align="center">flutter_svga_easyplayer</h1>
+# flutter_svga_easyplayer
 
-<p align="center">
-  A production-ready SVGA renderer for Flutter with an easy-to-use player,
-  intelligent caching, silent background precaching, dynamic content
-  overrides, and integrated audio playback.
-</p>
+[![pub version](https://img.shields.io/pub/v/flutter_svga_easyplayer.svg)](https://pub.dev/packages/flutter_svga_easyplayer)
+[![pub points](https://img.shields.io/pub/points/flutter_svga_easyplayer)](https://pub.dev/packages/flutter_svga_easyplayer/score)
+[![license](https://img.shields.io/github/license/zamansheikh/flutter_svga_easyplayer)](LICENSE)
 
-<p align="center">
-  <a href="https://pub.dev/packages/flutter_svga_easyplayer"><img src="https://img.shields.io/pub/v/flutter_svga_easyplayer.svg" alt="pub version"></a>
-  <a href="https://pub.dev/packages/flutter_svga_easyplayer/score"><img src="https://img.shields.io/pub/points/flutter_svga_easyplayer" alt="pub points"></a>
-  <a href="https://pub.dev/packages/flutter_svga_easyplayer/score"><img src="https://img.shields.io/pub/likes/flutter_svga_easyplayer" alt="pub likes"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/zamansheikh/flutter_svga_easyplayer" alt="license"></a>
-</p>
+Play SVGA animations in Flutter with one widget. Caching, precaching, sound,
+loading states and typed errors are built in.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/zamansheikh/flutter_svga_easyplayer/master/example.gif" width="300"/>
-  <img src="https://raw.githubusercontent.com/zamansheikh/flutter_svga_easyplayer/master/example1.gif" width="300"/>
-</p>
+![Ten gift animations playing in a grid](https://raw.githubusercontent.com/zamansheikh/flutter_svga_easyplayer/main/doc/preview.gif)
 
----
+## Features
 
-## Table of contents
-
-- [Highlights](#highlights)
-- [Install](#install)
-- [Quick start](#quick-start)
-- [Loading animations](#loading-animations)
-- [Playback modes](#playback-modes)
-- [Audio control](#audio-control)
-- [Caching](#caching)
-- [Background precaching](#background-precaching)
-- [Dynamic content](#dynamic-content)
-- [Using the controller directly](#using-the-controller-directly)
-- [API reference](#api-reference)
-- [Platform support](#platform-support)
-- [Troubleshooting](#troubleshooting)
-- [Further reading](#further-reading)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
-## Highlights
-
-- **`SVGAEasyPlayer`** — drop-in widget; play from assets or network with
-  one line of code.
-- **Three playback modes** — infinite loop, play once, or repeat *N* times,
-  each with an `onFinished` callback.
-- **Audio control** — mute/unmute embedded audio tracks at the widget or
-  controller level.
-- **Intelligent disk cache** — persistent, size- and age-bounded, shared
-  across widgets and app launches.
-- **Silent background precaching** — hand it a list of URLs and it warms
-  the cache on its own; later playback starts instantly from disk.
-- **Poison-resistant cache** — payloads are validated before they reach the
-  cache and corrupted entries are self-healed on read.
-- **Dynamic content** — override text, swap images, add custom drawings,
-  or hide layers at runtime.
-- **First-class controller** — full `AnimationController` API with frame
-  seeking, status listeners, and `SingleTickerProviderStateMixin` support.
-
----
+- **One widget.** `SVGAEasyPlayer` downloads, caches, decodes, plays and cleans up.
+- **Nothing fails silently.** Every failure is a typed `SVGAException`, with a placeholder and an error widget to show while loading or when it fails.
+- **Safe caching.** Files are stored only after they decode, written atomically and verified by checksum. A bad entry replaces itself.
+- **Shared decoding.** Players showing the same animation decode it once and share the bitmaps.
+- **Smooth.** Large files decode off the UI thread, and the canvas repaints only when the frame changes.
+- **Light.** The SVGA format is read by the package itself; no protobuf runtime.
 
 ## Install
 
-Add the package to your `pubspec.yaml`:
-
 ```yaml
 dependencies:
-  flutter_svga_easyplayer: ^0.0.7
+  flutter_svga_easyplayer: ^0.1.0
 ```
-
-Then run:
-
-```sh
-flutter pub get
-```
-
-Import it where needed:
 
 ```dart
 import 'package:flutter_svga_easyplayer/flutter_svga_easyplayer.dart';
 ```
 
----
+Animations with sound use [`audioplayers`](https://pub.dev/packages/audioplayers);
+follow its platform setup if you need sound.
 
-## Quick start
-
-The minimum you need to render an SVGA file:
+## Usage
 
 ```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_svga_easyplayer/flutter_svga_easyplayer.dart';
+// From the network
+const SVGAEasyPlayer(resUrl: 'https://cdn.example.com/gift.svga')
 
-void main() => runApp(const MyApp());
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('SVGA Demo')),
-        body: const Center(
-          child: SVGAEasyPlayer(
-            assetsName: 'assets/sample.svga',
-            fit: BoxFit.contain,
-          ),
-        ),
-      ),
-    );
-  }
-}
+// From an asset
+const SVGAEasyPlayer(assetsName: 'assets/gift.svga')
 ```
 
-Don't forget to register the asset in `pubspec.yaml`:
-
-```yaml
-flutter:
-  assets:
-    - assets/sample.svga
-```
-
----
-
-## Loading animations
-
-`SVGAEasyPlayer` accepts either an asset path or a network URL.
-
-### From assets
+A fuller example:
 
 ```dart
 SVGAEasyPlayer(
-  assetsName: 'assets/sample.svga',
-  fit: BoxFit.contain,
-);
-```
-
-### From a network URL
-
-```dart
-SVGAEasyPlayer(
-  resUrl: 'https://example.com/sample.svga',
+  resUrl: url,
+  loops: 0, // play once
   fit: BoxFit.cover,
-);
+  volume: 0.5,
+  placeholder: const CircularProgressIndicator(),
+  errorBuilder: (context, error) => const Icon(Icons.broken_image),
+  onFinished: () => Navigator.pop(context),
+)
 ```
 
-Network loads are cached automatically on first successful decode; see
-[Caching](#caching) and [Background precaching](#background-precaching)
-for how to make subsequent renders instantaneous.
+| Option | Default | What it does |
+|---|---|---|
+| `resUrl` / `assetsName` | — | Where the animation comes from. |
+| `loops` | `null` | `null` repeats forever, `0` plays once, `n` plays `n + 1` times. |
+| `onFinished` | — | Called when a finite playback ends. |
+| `fit` | `BoxFit.contain` | How the animation fills its box. |
+| `volume` / `isMute` | `1.0` / `false` | Sound level, and mute without losing it. |
+| `placeholder` | nothing | Shown while loading. |
+| `errorBuilder` / `onError` | nothing | Shown, or called, when loading fails. |
+| `onLoaded` | — | Called with the decoded animation before it plays. |
+| `clearsAfterStop` | `true` | Blank the canvas when playback ends; `false` keeps the last frame. |
+| `useCache` | `true` | `false` loads fresh and stores nothing, for this widget only. |
+| `clearCacheOnDispose` | `false` | Delete the cached file when the widget is removed. |
+| `headers` / `timeout` | — / 30 s | For the download. |
 
----
+## Errors
 
-## Playback modes
+Every failure extends `SVGAException` and carries `message`, `source` and `cause`.
 
-`SVGAEasyPlayer` exposes three playback modes through the `loops` parameter.
-
-| `loops` | Behaviour                          | `onFinished` |
-| :-----: | ---------------------------------- | :----------: |
-| `null`  | Infinite loop *(default)*          | never fires  |
-| `0`     | Play once                          | after 1 play |
-| `n > 0` | Play once, then repeat *n* times   | after n + 1  |
+| Type | When |
+|---|---|
+| `SVGANetworkException` | The request failed or the server answered with a non-2xx `statusCode`. |
+| `SVGATimeoutException` | The download took longer than `timeout`. |
+| `SVGAFormatException` | Not a complete SVGA 2.x file: an error page, a cut-off download, an SVGA 1.x archive. |
+| `SVGAAssetException` | The asset is not in the bundle. |
 
 ```dart
-// Infinite loop — perfect for loaders and backgrounds.
-SVGAEasyPlayer(assetsName: 'assets/loading.svga');
-
-// Play once — perfect for splash / intro animations.
-SVGAEasyPlayer(
-  assetsName: 'assets/splash.svga',
-  loops: 0,
-  onFinished: () => Navigator.of(context).pushReplacementNamed('/home'),
-);
-
-// Repeat three times — perfect for celebration effects.
-SVGAEasyPlayer(
-  assetsName: 'assets/celebration.svga',
-  loops: 3,
-  onFinished: () => debugPrint('done!'),
-);
+errorBuilder: (context, error) => switch (error) {
+  SVGANetworkException(statusCode: 404) => const Text('Not found'),
+  SVGATimeoutException() => const Text('Slow connection'),
+  _ => const Icon(Icons.broken_image),
+},
 ```
-
-See [PLAYBACK_MODES.md](PLAYBACK_MODES.md) for a deeper guide and more
-recipes.
-
----
-
-## Audio control
-
-SVGA files can embed audio tracks. Mute or unmute them without stopping
-the animation:
-
-```dart
-// From the widget.
-SVGAEasyPlayer(
-  assetsName: 'assets/with_audio.svga',
-  isMute: true,
-);
-
-// From a controller you own.
-final controller = SVGAAnimationController(vsync: this);
-controller.isMute = true;
-```
-
-Toggling `isMute` at runtime takes effect on the next frame — no reload
-required.
-
----
 
 ## Caching
 
-A persistent disk cache is enabled by default. Entries are keyed by URL
-(or `assets:<path>` for bundled assets), bounded by size and age, and
-survive app restarts.
-
-### Per-widget controls
+Both caches work without configuration.
 
 ```dart
-// Default: read from cache if available, store on first successful load.
-SVGAEasyPlayer(resUrl: 'https://cdn.example.com/anim.svga');
-
-// Always fetch fresh — useful for dynamic content.
-SVGAEasyPlayer(
-  resUrl: 'https://api.example.com/dynamic.svga',
-  useCache: false,
-);
-
-// One-shot animation — clear the entry when the widget disposes.
-SVGAEasyPlayer(
-  assetsName: 'assets/one_time.svga',
-  loops: 0,
-  clearCacheOnDispose: true,
-  onFinished: () => Navigator.pop(context),
-);
-```
-
-### Global configuration
-
-```dart
-// Tune once at startup (all values optional).
+// Downloaded files, on disk
 SVGACache.shared
-  ..setMaxCacheSize(100 * 1024 * 1024)        // 100 MB
-  ..setMaxAge(const Duration(days: 7));        // evict after 7 days
-
-// Inspect or manage the cache.
-final exists  = await SVGACache.shared.contains('https://…/anim.svga');
-final stats   = await SVGACache.shared.getStats();
-await SVGACache.shared.remove('https://…/anim.svga');
+  ..setMaxCacheSize(200 * 1024 * 1024)   // default 100 MB
+  ..setMaxAge(const Duration(days: 30)); // default 7 days
 await SVGACache.shared.clear();
+
+// Decoded animations, in memory
+SVGAMemoryCache.shared.maxIdleBytes = 64 * 1024 * 1024; // default 32 MB
+SVGAMemoryCache.shared.clear();
 ```
 
-Reliability: corrupt payloads (e.g. an HTML 404 page returned with a `200`
-status by a misconfigured CDN) are detected and **never written to the
-cache**. If a previously cached entry ever fails to decode it is evicted
-and refetched automatically — playback self-heals without any code on
-your side.
+Over the disk limit, the least recently used files are removed first. Assets
+are read from the app bundle and are not copied to disk.
 
-For advanced cache patterns see [CACHE.md](CACHE.md) and
-[CACHE_CONTROL.md](CACHE_CONTROL.md).
+## Precaching
 
----
-
-## Background precaching
-
-Hand `SVGAPrecacheManager` a list of URLs at startup (or any time), and
-it silently downloads and stores them in the same cache the player reads
-from. When you later render `SVGAEasyPlayer(resUrl: url)` for any of
-those URLs, **it plays instantly — no network round-trip, no loading
-indicator flash.**
-
-### In `main()`
-
-```dart
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Fire-and-forget — returns immediately, work happens in the background.
-  SVGAPrecacheManager.shared.precache(
-    const [
-      'https://cdn.example.com/a.svga',
-      'https://cdn.example.com/b.svga',
-      'https://cdn.example.com/c.svga',
-    ],
-    delay:       const Duration(seconds: 1),  // let startup settle first
-    concurrency: 3,                            // parallel downloads
-    timeout:     const Duration(seconds: 15),  // per-request timeout
-  );
-
-  runApp(const MyApp());
-}
-```
-
-### From any screen
-
-You are not limited to `main()`. Precache from `initState`, after login,
-on a button tap, or whenever your app knows which animations are coming:
-
-```dart
-@override
-void initState() {
-  super.initState();
-  SVGAPrecacheManager.shared.precache(const [
-    'https://cdn.example.com/home_hero.svga',
-    'https://cdn.example.com/home_badge.svga',
-  ]);
-}
-```
-
-### With progress or a result
+Download animations ahead of time so the first playback starts instantly.
 
 ```dart
 final result = await SVGAPrecacheManager.shared.precache(
-  urls,
-  onProgress: (done, total, url, ok) {
-    debugPrint('[$done/$total] ${ok ? "OK" : "FAIL"}  $url');
-  },
+  ['https://cdn.example.com/a.svga', 'https://cdn.example.com/b.svga'],
+  delay: const Duration(seconds: 2),
+  onProgress: (done, total, url, ok) {},
 );
 
-// SVGAPrecacheResult(total: 6, completed: 6, hits: 2, fetched: 4, failed: 0, cancelled: false)
-debugPrint('$result');
-```
-
-### Assets, cancellation, and state
-
-```dart
-// Warm bundled assets.
-SVGAPrecacheManager.shared.precacheAssets(const [
-  'assets/intro.svga',
-  'assets/celebration.svga',
-]);
-
-// Cancel any in-flight batch; in-progress downloads still finish.
 SVGAPrecacheManager.shared.cancel();
-
-// Check whether anything is running.
-if (SVGAPrecacheManager.shared.isRunning) { /* … */ }
 ```
 
-### Why it's safe to call on every launch
+It never throws, skips files that are already cached, and stores a download
+only after verifying it. Calling it on every launch is safe.
 
-- **Skip-if-cached** — URLs with a valid entry are skipped without any
-  network I/O.
-- **Deduplicated** — overlapping batches requesting the same URL result
-  in a single download.
-- **Failure-tolerant** — network, timeout, asset, and disk errors are
-  swallowed; one bad URL never blocks the rest.
-- **Validated before storage** — only payloads that look like a valid
-  SVGA (zlib) file are written to the cache.
-- **Global-setting aware** — honours `SVGACache.shared`'s enable flag,
-  `maxCacheSize`, and `maxAge`.
+## Full control
 
----
-
-## Dynamic content
-
-Replace text, swap images, add a custom drawer, or hide a layer at
-runtime. These operate on the `dynamicItem` of the decoded `MovieEntity`.
-
-### Replace text
+`SVGAAnimationController` is a regular `AnimationController`.
 
 ```dart
-controller.videoItem!.dynamicItem.setText(
-  TextPainter(
-    text: const TextSpan(
-      text: 'Hello SVGA!',
-      style: TextStyle(color: Colors.red, fontSize: 18),
-    ),
-    textDirection: TextDirection.ltr,
-  ),
-  'text_layer',
-);
+final controller = SVGAAnimationController(vsync: this);
+
+final movie = await SVGAParser.shared.decodeFromURL(url); // or decodeFromAssets
+controller
+  ..videoItem = movie
+  ..repeat();
+
+// in build:
+SVGAImage(controller)
 ```
 
-### Swap an image
+Replace parts of an animation at runtime by layer name:
 
 ```dart
-controller.videoItem!.dynamicItem.setImageWithUrl(
-  'https://example.com/new_image.png',
-  'image_layer',
-);
+movie.dynamicItem
+  ..setText(textPainter, 'banner')
+  ..setHidden(true, 'watermark')
+  ..setDynamicDrawer((canvas, frame) {}, 'badge');
+await movie.dynamicItem.setImageWithUrl(avatarUrl, 'avatar');
 ```
 
-### Draw on top of a layer
+Players that share a cached animation also share its `dynamicItem`; pass
+`useCache: false` to `SVGAEasyPlayer` when one widget needs its own.
 
-```dart
-controller.videoItem!.dynamicItem.setDynamicDrawer(
-  (canvas, frameIndex) {
-    canvas.drawRect(
-      const Rect.fromLTWH(0, 0, 88, 88),
-      Paint()..color = Colors.red,
-    );
-  },
-  'banner',
-);
-```
+## Performance
 
-### Hide a layer
+Compared with 0.0.7 on the gift animations in the example app, using
+`test/benchmark/render_bench.dart`. Output was compared pixel for pixel on
+173 frames from 15 files and is identical.
 
-```dart
-controller.videoItem!.dynamicItem.setHidden(true, 'layer_to_hide');
-```
+| Animation | Decode | Paint one frame |
+|---|---|---|
+| `kiss` (54 KB, 10 layers) | 0.8 → 0.6 ms | 40 → 33 µs |
+| `corgi-cloud` (118 KB, 39 layers) | 2.2 → 1.5 ms | 64 → 52 µs |
+| `bunny-birthday-cake` (240 KB, 100 layers) | 5.7 → 3.8 ms | 97 → 68 µs |
+| `blue-rose-heart` (132 KB, 102 layers) | 13.5 → 2.7 ms | 136 → 112 µs |
+| `heart-jar` (165 KB, 609 layers) | 18.3 → 3.7 ms | 283 → 51 µs |
 
----
+Measured in the Flutter test environment on one machine, so read them as
+relative numbers.
 
-## Using the controller directly
+## Platforms
 
-When you need manual control — for timeline scrubbing, status listeners,
-or interop with other animations — use `SVGAAnimationController` and
-`SVGAImage` directly:
+Android, iOS, macOS, Windows and Linux. Web is experimental: no disk cache,
+and decoding runs on the main thread.
 
-```dart
-class MyAnimated extends StatefulWidget {
-  const MyAnimated({super.key});
+SVGA 2.x files are supported. Matte layers are not rendered.
 
-  @override
-  State<MyAnimated> createState() => _MyAnimatedState();
-}
+## Migrating from 0.0.x
 
-class _MyAnimatedState extends State<MyAnimated>
-    with SingleTickerProviderStateMixin {
-  late final SVGAAnimationController _controller =
-      SVGAAnimationController(vsync: this)..isMute = true;
+Widget code keeps working. Three things changed:
 
-  @override
-  void initState() {
-    super.initState();
-    SVGAParser.shared.decodeFromAssets('assets/sample.svga').then((video) {
-      if (!mounted) {
-        video.dispose();
-        return;
-      }
-      _controller
-        ..videoItem = video
-        ..repeat();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => SVGAImage(_controller);
-}
-```
-
-Controller playback controls:
-
-```dart
-controller.forward();  // play once
-controller.repeat();   // loop
-controller.stop();     // pause
-controller.value = 0;  // seek to first frame
-```
-
----
-
-## API reference
-
-### `SVGAEasyPlayer`
-
-| Parameter             | Type              | Default        | Description                                                                |
-| --------------------- | ----------------- | -------------- | -------------------------------------------------------------------------- |
-| `assetsName`          | `String?`         | —              | Path to a bundled asset. Mutually exclusive with `resUrl`.                 |
-| `resUrl`              | `String?`         | —              | Network URL. Mutually exclusive with `assetsName`.                         |
-| `fit`                 | `BoxFit`          | `contain`      | How the animation is scaled inside the widget.                             |
-| `loops`               | `int?`            | `null`         | `null` = infinite, `0` = play once, `n > 0` = play once + repeat *n*.      |
-| `onFinished`          | `VoidCallback?`   | —              | Called after the configured playback completes.                            |
-| `isMute`              | `bool`            | `false`        | Mute embedded audio.                                                       |
-| `useCache`            | `bool`            | `true`         | Read from and write to the global cache for this widget.                   |
-| `clearCacheOnDispose` | `bool`            | `false`        | Remove the cache entry for this source when the widget is disposed.        |
-
-### `SVGAParser`
-
-| Call                                       | Description                                            |
-| ------------------------------------------ | ------------------------------------------------------ |
-| `SVGAParser.shared.decodeFromURL(url)`     | Decode from a URL (uses and populates the cache).      |
-| `SVGAParser.shared.decodeFromAssets(path)` | Decode from a bundled asset (uses and populates cache).|
-| `SVGAParser.shared.decodeFromBuffer(bytes)`| Decode a raw `List<int>`/`Uint8List` payload.          |
-
-### `SVGACache`
-
-| Call                                   | Description                                            |
-| -------------------------------------- | ------------------------------------------------------ |
-| `setEnabled(bool)`                     | Globally enable or disable caching.                    |
-| `setMaxCacheSize(bytes)`               | Set the cache size ceiling (default `100 MB`).         |
-| `setMaxAge(Duration)`                  | Set the per-entry expiry (default `7 days`).           |
-| `contains(source)`                     | Whether a valid entry exists for `source`.             |
-| `remove(source)`                       | Delete one entry.                                      |
-| `clear()`                              | Delete every entry.                                    |
-| `getStats()`                           | `{enabled, size, maxSize, fileCount, maxAge}` snapshot.|
-
-### `SVGAPrecacheManager`
-
-| Call                                                        | Description                                                 |
-| ----------------------------------------------------------- | ----------------------------------------------------------- |
-| `precache(urls, {delay, concurrency, timeout, onProgress})` | Fire-and-forget precache of network URLs. Returns a result. |
-| `precacheAssets(paths, {delay, concurrency, onProgress})`   | Same, for bundled assets.                                   |
-| `cancel()`                                                  | Stop picking up new items from in-flight batches.           |
-| `isRunning`                                                 | `true` while any batch is still active.                     |
-
-### `SVGAAnimationController`
-
-Inherits from `AnimationController` — use `forward`, `repeat`, `stop`,
-`reset`, `value`, and status listeners as usual. Adds:
-
-| Member           | Description                                        |
-| ---------------- | -------------------------------------------------- |
-| `videoItem`      | The decoded `MovieEntity` to render.               |
-| `isMute`         | Mute embedded audio.                               |
-| `currentFrame`   | Current frame index (`0`-based).                   |
-| `frames`         | Total frame count.                                 |
-
----
-
-## Platform support
-
-| Platform | Rendering | Audio |
-| -------- | :-------: | :---: |
-| Android  | ✓         | ✓     |
-| iOS      | ✓         | ✓     |
-| macOS    | ✓         | ✓     |
-| Linux    | ✓         | ✓     |
-| Windows  | ✓         | ✓     |
-| Web      | ✓         | —     |
-
----
-
-## Troubleshooting
-
-**A black box where the animation should be.** The asset is missing or
-not registered. Add it under `flutter/assets:` in `pubspec.yaml` and
-re-run `flutter pub get`.
-
-**`Exception caught by SVGAEasyPlayer: Filter error, bad data`.** The
-bytes fed to the decoder are not a valid SVGA payload. Since `0.0.7` the
-cache refuses to store bad payloads and self-heals previously poisoned
-entries on next read, so a single hiccup cannot keep failing forever.
-Check that the URL actually returns an `.svga` file (try `curl -I <url>`
-or open it in a browser).
-
-**Network URL won't load.** Serve the file over HTTPS, verify it in a
-browser, and make sure platform network permissions are configured (e.g.
-iOS ATS exceptions for plain HTTP during development).
-
-**Animation renders but never moves.** You probably set the `videoItem`
-without calling `forward()`, `repeat()`, or any playback method on the
-controller.
-
----
-
-## Further reading
-
-- [CHANGELOG.md](CHANGELOG.md) — release notes.
-- [PLAYBACK_MODES.md](PLAYBACK_MODES.md) — detailed playback-mode guide.
-- [CACHE.md](CACHE.md) — cache internals and patterns.
-- [CACHE_CONTROL.md](CACHE_CONTROL.md) — advanced cache management.
-- [QUICK_REFERENCE.md](QUICK_REFERENCE.md) — cheat sheet.
-- [`example/`](example) — interactive demo app covering every feature.
-
----
-
-## Contributing
-
-- Found a bug or want a feature? [Open an issue](https://github.com/zamansheikh/flutter_svga_easyplayer/issues).
-- Pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for
-  guidelines.
-
-### Maintainer
-
-- **[zamansheikh](https://github.com/zamansheikh)** — lead developer and
-  maintainer.
-
-### Contributors
-
-| Contributor                                               | Contribution                                  |
-| --------------------------------------------------------- | --------------------------------------------- |
-| [wonderkidshihab](https://github.com/wonderkidshihab)     | Fixed repeated music playback bug ([#3](https://github.com/zamansheikh/flutter_svga_easyplayer/issues/3)) |
-
----
+- `MovieEntity` is a plain Dart class, not a protobuf message. `params`,
+  `sprites`, `audios`, `dynamicItem`, `autorelease` and `dispose()` are the same.
+- Load failures are `SVGAException`s instead of raw HTTP or zlib errors.
+- Assets are no longer copied into the disk cache, so `precacheAssets` only
+  checks that they exist.
 
 ## License
 
-Released under the [MIT License](LICENSE).
+[MIT](LICENSE)

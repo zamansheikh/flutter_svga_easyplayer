@@ -1,39 +1,24 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:http/http.dart' as http;
 
-import 'cache.dart';
+import 'format/movie_decoder.dart';
+import 'io/cache.dart';
+import 'io/fetcher.dart';
+import 'parser.dart';
 
-/// Cheap sanity check for an SVGA payload. SVGA 2.x is a zlib-deflated
-/// protobuf, so the first byte of a valid file has its low nibble equal to
-/// `8` (DEFLATE compression method in the zlib CMF byte). This catches the
-/// common case of a CDN returning an HTML error page with a 200 status, so
-/// we never poison the cache with it.
-bool _looksLikeSvgaPayload(Uint8List bytes) {
-  if (bytes.length < 2) return false;
-  return (bytes[0] & 0x0F) == 0x08;
-}
-
-/// Callback fired each time a precache entry finishes (success or failure).
+/// Called each time one entry of a precache batch finishes.
 ///
-/// * [completed] — number of entries processed so far.
-/// * [total] — total entries in the batch.
+/// * [completed] — entries finished so far, including this one.
+/// * [total] — entries in the batch.
 /// * [source] — the URL or asset path that just finished.
-/// * [success] — `true` if the entry is now in cache, `false` on failure.
+/// * [success] — whether the entry is now ready to play from cache.
 typedef SVGAPrecacheProgress =
     void Function(int completed, int total, String source, bool success);
 
-/// Summary of a precache run returned by [SVGAPrecacheManager.precache].
+/// Outcome of a precache batch.
 class SVGAPrecacheResult {
-  final int total;
-  final int completed;
-  final int cacheHits;
-  final int fetched;
-  final int failed;
-  final bool cancelled;
-
   const SVGAPrecacheResult({
     required this.total,
     required this.completed,
@@ -43,7 +28,26 @@ class SVGAPrecacheResult {
     required this.cancelled,
   });
 
-  bool get isSuccess => !cancelled && failed == 0;
+  /// Entries requested.
+  final int total;
+
+  /// Entries processed before the batch ended.
+  final int completed;
+
+  /// Entries that were already cached.
+  final int cacheHits;
+
+  /// Entries downloaded and stored by this batch.
+  final int fetched;
+
+  /// Entries that could not be downloaded or were not valid SVGA files.
+  final int failed;
+
+  /// Whether [SVGAPrecacheManager.cancel] stopped the batch early.
+  final bool cancelled;
+
+  /// Whether every entry is now cached.
+  bool get isSuccess => !cancelled && failed == 0 && completed == total;
 
   @override
   String toString() =>
@@ -52,86 +56,84 @@ class SVGAPrecacheResult {
       'cancelled: $cancelled)';
 }
 
-/// Silently pre-fetches SVGA files into [SVGACache] so that when
-/// [SVGAParser.decodeFromURL] or [SVGAParser.decodeFromAssets] is later called
-/// with the same source, playback starts instantly from the local cache.
-///
-/// Typical usage at app startup:
+/// Downloads SVGA files into [SVGACache] ahead of time, so the first
+/// playback of each one starts without waiting for the network.
 ///
 /// ```dart
-/// void main() {
-///   WidgetsFlutterBinding.ensureInitialized();
-///   // Fire-and-forget: warms the cache in the background.
-///   SVGAPrecacheManager.shared.precache(
-///     ['https://cdn.example.com/a.svga', 'https://cdn.example.com/b.svga'],
-///     delay: const Duration(seconds: 2),
-///     concurrency: 3,
-///   );
-///   runApp(MyApp());
-/// }
+/// SVGAPrecacheManager.shared.precache(
+///   ['https://cdn.example.com/a.svga', 'https://cdn.example.com/b.svga'],
+///   delay: const Duration(seconds: 2),
+/// );
 /// ```
 ///
-/// The manager honours [SVGACache.shared] settings (enabled flag, max size,
-/// max age) and skips URLs that already have a valid cache entry, so calling
-/// it on every app launch is safe and cheap.
+/// Precaching never throws: a failed entry is counted in
+/// [SVGAPrecacheResult.failed] and the rest of the batch carries on.
 class SVGAPrecacheManager {
+  SVGAPrecacheManager._();
+
   static SVGAPrecacheManager? _instance;
   static SVGAPrecacheManager get shared =>
       _instance ??= SVGAPrecacheManager._();
 
-  SVGAPrecacheManager._();
-
-  /// Sources currently being fetched across all in-flight batches.
-  /// Used to deduplicate work when overlapping batches request the same URL.
-  final Set<String> _inFlight = <String>{};
-
+  // Bumped by cancel(). A batch that started under an older epoch stops
+  // picking up work, whether it is downloading or still in its start delay.
+  int _epoch = 0;
   int _activeTasks = 0;
   int _activeBatches = 0;
-  bool _cancelRequested = false;
 
-  /// Number of precache fetches currently running.
+  /// Downloads currently in progress.
   int get activeTasks => _activeTasks;
 
-  /// Whether any precache batch is currently running.
+  /// Whether any batch is waiting to start or running.
   bool get isRunning => _activeBatches > 0;
 
-  /// Pre-cache a list of remote SVGA [urls] silently in the background.
+  /// Downloads [urls] into the disk cache.
   ///
-  /// Returns a [Future] that completes with a [SVGAPrecacheResult] once every
-  /// entry has been processed. Awaiting the future is optional; callers can
-  /// fire-and-forget.
-  ///
-  /// * [delay] — wait this long before starting, e.g. to avoid contending with
-  ///   startup network traffic. `null` or [Duration.zero] starts immediately.
-  /// * [concurrency] — maximum parallel downloads (default `3`). Clamped to
-  ///   `[1, urls.length]`.
-  /// * [skipIfCached] — when `true` (default), URLs that already have a valid
-  ///   cache entry are skipped without any network I/O.
-  /// * [timeout] — optional per-request timeout. Timed-out requests are
-  ///   counted as failures but never throw.
-  /// * [onProgress] — optional per-entry progress callback.
+  /// * [delay] — wait before starting, to stay out of the way of app
+  ///   startup.
+  /// * [concurrency] — maximum simultaneous downloads.
+  /// * [skipIfCached] — leave entries that are already cached untouched.
+  /// * [timeout] — per-download limit; defaults to
+  ///   [SVGAParser.defaultTimeout].
+  /// * [headers] — extra HTTP headers for every download.
+  /// * [onProgress] — called as each entry finishes.
   Future<SVGAPrecacheResult> precache(
     List<String> urls, {
     Duration? delay,
     int concurrency = 3,
     bool skipIfCached = true,
     Duration? timeout,
+    Map<String, String>? headers,
     SVGAPrecacheProgress? onProgress,
   }) {
     return _run(
       sources: urls,
-      isAsset: false,
       delay: delay,
       concurrency: concurrency,
-      skipIfCached: skipIfCached,
-      timeout: timeout,
       onProgress: onProgress,
+      process: (url) async {
+        if (skipIfCached && await SVGACache.shared.contains(url)) {
+          return _Outcome.cacheHit;
+        }
+        final bytes = await SVGAFetcher.fetch(
+          url,
+          headers: headers,
+          timeout: timeout ?? SVGAParser.defaultTimeout,
+        );
+        // Inflate the payload off the UI thread to prove it is a complete
+        // SVGA file before it is allowed into the cache.
+        if (!await compute(isIntactSvga, bytes)) return _Outcome.failed;
+        await SVGACache.shared.putRawBytes(url, bytes);
+        return _Outcome.fetched;
+      },
     );
   }
 
-  /// Pre-cache a list of bundled asset SVGA [paths] silently in the
-  /// background. Behaves like [precache] but reads through
-  /// [rootBundle].
+  /// Checks that the bundled animations at [paths] exist and are valid.
+  ///
+  /// Assets are read straight from the app bundle at playback time, so
+  /// there is nothing to download or store; this is useful as a startup
+  /// sanity check. Valid assets are counted as [SVGAPrecacheResult.cacheHits].
   Future<SVGAPrecacheResult> precacheAssets(
     List<String> paths, {
     Duration? delay,
@@ -141,144 +143,100 @@ class SVGAPrecacheManager {
   }) {
     return _run(
       sources: paths,
-      isAsset: true,
       delay: delay,
       concurrency: concurrency,
-      skipIfCached: skipIfCached,
-      timeout: null,
       onProgress: onProgress,
+      process: (path) async {
+        final data = await rootBundle.load(path);
+        final bytes = data.buffer.asUint8List(
+          data.offsetInBytes,
+          data.lengthInBytes,
+        );
+        return looksLikeSvga(bytes) ? _Outcome.cacheHit : _Outcome.failed;
+      },
     );
   }
 
-  /// Request cancellation of any in-flight precache batches.
-  ///
-  /// Already-started downloads finish, but no new ones are picked up.
+  /// Stops every batch that is waiting or running. Downloads already in
+  /// progress finish; no new ones start.
   void cancel() {
-    if (_activeBatches > 0) {
-      _cancelRequested = true;
-    }
+    _epoch++;
   }
 
   Future<SVGAPrecacheResult> _run({
     required List<String> sources,
-    required bool isAsset,
     required Duration? delay,
     required int concurrency,
-    required bool skipIfCached,
-    required Duration? timeout,
     required SVGAPrecacheProgress? onProgress,
+    required Future<_Outcome> Function(String source) process,
   }) async {
     final total = sources.length;
-    if (total == 0) {
-      return const SVGAPrecacheResult(
-        total: 0,
-        completed: 0,
-        cacheHits: 0,
-        fetched: 0,
-        failed: 0,
-        cancelled: false,
-      );
-    }
+    var completed = 0, hits = 0, fetched = 0, failed = 0;
+    final epoch = _epoch;
+    bool isCancelled() => epoch != _epoch;
 
-    if (delay != null && delay > Duration.zero) {
-      await Future.delayed(delay);
-    }
-
-    _activeBatches++;
-    // Reset the cancel flag only on the first batch; concurrent callers share
-    // the same cancel signal until all batches drain.
-    if (_activeBatches == 1) _cancelRequested = false;
-
-    final queue = List<String>.from(sources);
-    int completed = 0;
-    int hits = 0;
-    int fetched = 0;
-    int failed = 0;
-
-    Future<void> worker() async {
-      while (true) {
-        if (_cancelRequested) return;
-        if (queue.isEmpty) return;
-        final source = queue.removeAt(0);
-        final cacheKey = isAsset ? 'assets:$source' : source;
-
-        // If another batch is already fetching this exact source, wait for its
-        // cache entry rather than downloading twice.
-        if (_inFlight.contains(cacheKey)) {
-          completed++;
-          onProgress?.call(completed, total, source, true);
-          continue;
-        }
-
-        _inFlight.add(cacheKey);
-        _activeTasks++;
-        bool success = false;
-        try {
-          if (skipIfCached && await SVGACache.shared.contains(cacheKey)) {
-            hits++;
-            success = true;
-          } else if (isAsset) {
-            final data = await rootBundle.load(source);
-            final bytes = data.buffer.asUint8List();
-            if (_looksLikeSvgaPayload(bytes)) {
-              await SVGACache.shared.putRawBytes(cacheKey, bytes);
-              fetched++;
-              success = true;
-            } else {
-              // Asset is not a valid SVGA payload — don't cache garbage.
-              failed++;
-            }
-          } else {
-            final uri = Uri.parse(source);
-            final request = http.get(uri);
-            final response = timeout != null
-                ? await request.timeout(timeout)
-                : await request;
-            if (response.statusCode >= 200 && response.statusCode < 300) {
-              final bytes = Uint8List.fromList(response.bodyBytes);
-              if (_looksLikeSvgaPayload(bytes)) {
-                await SVGACache.shared.putRawBytes(cacheKey, bytes);
-                fetched++;
-                success = true;
-              } else {
-                // 200-with-HTML-error-page and similar — skip, do not cache.
-                failed++;
-              }
-            } else {
-              failed++;
-            }
-          }
-        } catch (_) {
-          // Network errors, asset misses, disk errors — all swallowed so
-          // precache stays silent and one bad URL never blocks the rest.
-          failed++;
-        } finally {
-          _inFlight.remove(cacheKey);
-          _activeTasks--;
-        }
-
-        completed++;
-        onProgress?.call(completed, total, source, success);
-      }
-    }
-
-    final workerCount = concurrency < 1
-        ? 1
-        : (concurrency > total ? total : concurrency);
-    try {
-      await Future.wait(List.generate(workerCount, (_) => worker()));
-    } finally {
-      _activeBatches--;
-      if (_activeBatches == 0) _cancelRequested = false;
-    }
-
-    return SVGAPrecacheResult(
+    SVGAPrecacheResult result() => SVGAPrecacheResult(
       total: total,
       completed: completed,
       cacheHits: hits,
       fetched: fetched,
       failed: failed,
-      cancelled: _cancelRequested && completed < total,
+      cancelled: isCancelled() && completed < total,
     );
+
+    if (total == 0) return result();
+
+    _activeBatches++;
+    try {
+      if (delay != null && delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+
+      var next = 0;
+      Future<void> worker() async {
+        while (!isCancelled() && next < total) {
+          final source = sources[next++];
+          var outcome = _Outcome.failed;
+          _activeTasks++;
+          try {
+            outcome = await process(source);
+          } catch (_) {
+            // Network, storage and asset errors all count as a failed
+            // entry; one bad source must not stop the batch.
+          } finally {
+            _activeTasks--;
+          }
+          switch (outcome) {
+            case _Outcome.cacheHit:
+              hits++;
+            case _Outcome.fetched:
+              fetched++;
+            case _Outcome.failed:
+              failed++;
+          }
+          completed++;
+          try {
+            onProgress?.call(
+              completed,
+              total,
+              source,
+              outcome != _Outcome.failed,
+            );
+          } catch (_) {
+            // A throwing callback is the caller's bug, not a reason to
+            // abandon the remaining downloads.
+          }
+        }
+      }
+
+      await Future.wait(
+        List.generate(concurrency.clamp(1, total), (_) => worker()),
+      );
+    } finally {
+      _activeBatches--;
+    }
+    return result();
   }
 }
+
+enum _Outcome { cacheHit, fetched, failed }

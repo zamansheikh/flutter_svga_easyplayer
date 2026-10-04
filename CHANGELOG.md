@@ -2,6 +2,77 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0] - 2026-10-05
+
+The package has been rewritten from the ground up. Rendering is unchanged:
+173 frames from 15 files were compared pixel for pixel with 0.0.7 and are
+identical.
+
+### Added
+
+- **Typed errors.** Every failure is an `SVGAException`:
+  `SVGANetworkException` (with `statusCode`), `SVGATimeoutException`,
+  `SVGAFormatException` and `SVGAAssetException`.
+- **Loading and error states** on `SVGAEasyPlayer`: `placeholder`,
+  `errorBuilder`, `onLoaded` and `onError`.
+- **`SVGAMemoryCache`.** Players showing the same source share one decoded
+  animation, and it stays warm after the last player is removed.
+- **Volume control**: `volume` on `SVGAEasyPlayer` and
+  `SVGAAnimationController`, alongside `isMute`.
+- `headers`, `timeout`, `filterQuality`, `allowDrawingOverflow` and
+  `clearsAfterStop` on `SVGAEasyPlayer`.
+- `useCache`, `headers` and `timeout` on `SVGAParser.decodeFromURL`;
+  `bundle` and `package` on `decodeFromAssets`.
+- `SVGAParser.httpClient`, `SVGAParser.defaultTimeout` (30 s) and
+  `SVGAParser.isolateThreshold`.
+
+### Changed
+
+- **Own SVGA reader.** The file format is decoded by the package itself; the
+  `protobuf` and `path_drawing` dependencies are gone. `MovieEntity` and its
+  parts are now plain Dart classes.
+- **Faster.** On the example gifts, decoding is up to 5× faster and
+  painting a frame up to 5.5× faster than 0.0.7, and no file is slower (see
+  the README). Files of 64 KB or more decode on a background isolate, and
+  the canvas repaints only when the frame changes rather than on every
+  display refresh.
+- **Disk cache rewritten.** Atomic writes, an in-memory index instead of a
+  directory scan on every write, and least-recently-used eviction.
+- Assets are read straight from the bundle and are no longer copied into
+  the disk cache. `precacheAssets` now only validates the assets.
+- Sound restarts with each loop and is written to disk when the animation
+  loads rather than when it first plays.
+
+### Fixed
+
+- Two animations that used the same audio key for different sounds could
+  play each other's sound.
+- `SVGAEasyPlayer(useCache: false)` could leave the global cache switched
+  off for the whole app.
+- `SVGACache.clear()` and `getCacheSize()` did nothing until the cache had
+  been read or written once.
+- A truncated download could be cached and played as a broken animation;
+  files are now verified against their checksum.
+- A non-2xx response surfaced as a zlib "Filter error".
+- `SVGAPrecacheResult.cancelled` was always `false`, and `cancel()` was
+  ignored during the start delay.
+- A slow earlier load could overwrite a newer one after the source changed.
+- A blank frame could flash between loops.
+- Audio players of a replaced animation were never released.
+- A missing audio plugin or an undecodable sound no longer breaks playback.
+
+### Removed
+
+- The separate cache, playback and quick-reference guides; the README now
+  covers them.
+- The old sample animations. The example app is now a gallery of gift
+  animations.
+
+### Migration
+
+See "Migrating from 0.0.x" in the README. Typical widget code needs no
+changes.
+
 ## [0.0.7] - 2026-04-21
 
 ### 🩹 Fixes
