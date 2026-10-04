@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-10-05
+
+Clearer names for `SVGAEasyPlayer`. Existing code keeps working; the old
+names are deprecated and point at their replacements.
+
+### Added
+
+- `SVGAEasyPlayer.network(url)` and `SVGAEasyPlayer.asset(path)`.
+- `playCount`: how many times to play.
+- With the new constructors, giving `onFinished` makes the animation play
+  once (or `playCount` times) and then call it. Without either, it repeats
+  forever. The original constructor behaves as before.
+- `muted` on `SVGAEasyPlayer` and `SVGAAnimationController`.
+- `keepLastFrame`: keep the last frame on screen when playback finishes.
+
+### Deprecated
+
+- `resUrl` and `assetsName`: use the named constructors.
+- `loops`: use `playCount`, which is `loops + 1`.
+- `isMute`: use `muted`.
+- `clearsAfterStop`: use `keepLastFrame`, which is the opposite.
+
 ## [0.1.0] - 2026-10-05
 
 The package has been rewritten from the ground up. Rendering is unchanged:

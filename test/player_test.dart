@@ -48,6 +48,9 @@ Future<MovieEntity> _decode(WidgetTester tester, String name) async {
 }
 
 void main() {
+  // The previous test's widgets are disposed after its tearDown, which
+  // returns their animations to the cache; start each test from empty.
+  setUp(SVGAMemoryCache.shared.clear);
   tearDown(SVGAMemoryCache.shared.clear);
 
   group('SVGAAnimationController', () {
@@ -92,9 +95,9 @@ void main() {
       controller.volume = 3;
       expect(controller.volume, 1.0);
       controller.volume = 0.4;
-      controller.isMute = true;
+      controller.muted = true;
       expect(controller.volume, 0.4);
-      expect(controller.isMute, isTrue);
+      expect(controller.muted, isTrue);
     });
   });
 
@@ -199,8 +202,8 @@ void main() {
       MovieEntity? loaded;
       await tester.pumpWidget(
         _host(
-          SVGAEasyPlayer(
-            assetsName: 'kiss.svga',
+          SVGAEasyPlayer.asset(
+            'kiss.svga',
             placeholder: const Text('loading'),
             onLoaded: (movie) => loaded = movie,
           ),
@@ -220,8 +223,8 @@ void main() {
       Object? reported;
       await tester.pumpWidget(
         _host(
-          SVGAEasyPlayer(
-            assetsName: 'missing.svga',
+          SVGAEasyPlayer.asset(
+            'missing.svga',
             errorBuilder: (_, error) => const Text('failed'),
             onError: (error, _) => reported = error,
           ),
@@ -237,9 +240,9 @@ void main() {
       Object? reported;
       await tester.pumpWidget(
         _host(
-          SVGAEasyPlayer(
+          SVGAEasyPlayer.asset(
             // A real file in the same folder, but not an animation.
-            assetsName: '../pubspec.yaml',
+            '../pubspec.yaml',
             onError: (error, _) => reported = error,
           ),
         ),
@@ -262,13 +265,13 @@ void main() {
       return elapsed;
     }
 
-    testWidgets('loops: 0 plays once and finishes once', (tester) async {
+    testWidgets('playCount: 1 plays once and finishes once', (tester) async {
       var finished = 0;
       await tester.pumpWidget(
         _host(
-          SVGAEasyPlayer(
-            assetsName: 'kiss.svga',
-            loops: 0,
+          SVGAEasyPlayer.asset(
+            'kiss.svga',
+            playCount: 1,
             onFinished: () => finished++,
           ),
         ),
@@ -281,15 +284,15 @@ void main() {
       expect(finished, 1);
     });
 
-    testWidgets('loops: 2 plays three times', (tester) async {
-      Future<Duration> timeToFinish(int loops) async {
+    testWidgets('playCount: 3 plays three times', (tester) async {
+      Future<Duration> timeToFinish(int playCount) async {
         var finished = false;
         await tester.pumpWidget(
           _host(
             SVGAEasyPlayer(
-              key: ValueKey(loops),
+              key: ValueKey(playCount),
               assetsName: 'kiss.svga',
-              loops: loops,
+              playCount: playCount,
               onFinished: () => finished = true,
             ),
           ),
@@ -298,16 +301,63 @@ void main() {
         return pumpUntil(tester, () => finished);
       }
 
-      final once = await timeToFinish(0);
-      final thrice = await timeToFinish(2);
+      final once = await timeToFinish(1);
+      final thrice = await timeToFinish(3);
       expect(thrice.inMilliseconds / once.inMilliseconds, closeTo(3.0, 0.25));
     });
 
-    testWidgets('infinite playback never finishes', (tester) async {
+    testWidgets('onFinished alone plays once', (tester) async {
+      var finished = 0;
+      await tester.pumpWidget(
+        _host(SVGAEasyPlayer.asset('kiss.svga', onFinished: () => finished++)),
+      );
+      await _settleLoad(tester);
+      await pumpUntil(tester, () => finished > 0);
+      expect(finished, 1);
+      await tester.pump(const Duration(seconds: 10));
+      expect(finished, 1);
+    });
+
+    testWidgets('without playCount or onFinished it repeats forever', (
+      tester,
+    ) async {
+      MovieEntity? movie;
+      var paints = 0;
+      await tester.pumpWidget(
+        _host(
+          SVGAEasyPlayer.asset(
+            'kiss.svga',
+            useCache: false,
+            onLoaded: (loaded) => movie = loaded,
+          ),
+        ),
+      );
+      await _settleLoad(tester);
+      for (final sprite in movie!.sprites) {
+        movie!.dynamicItem.setDynamicDrawer(
+          (_, _) => paints++,
+          sprite.imageKey,
+        );
+      }
+      // Far beyond one play (2.5 s): it must still be animating.
+      await tester.pump(const Duration(seconds: 30));
+      paints = 0;
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(paints, greaterThan(0));
+    });
+
+    testWidgets('the original constructor still repeats forever', (
+      tester,
+    ) async {
       var finished = 0;
       await tester.pumpWidget(
         _host(
-          SVGAEasyPlayer(assetsName: 'kiss.svga', onFinished: () => finished++),
+          SVGAEasyPlayer(
+            // ignore: deprecated_member_use_from_same_package
+            assetsName: 'kiss.svga',
+            onFinished: () => finished++,
+          ),
         ),
       );
       await _settleLoad(tester);
@@ -324,8 +374,8 @@ void main() {
             children: [
               for (var i = 0; i < 3; i++)
                 Expanded(
-                  child: SVGAEasyPlayer(
-                    assetsName: 'corgi-cloud.svga',
+                  child: SVGAEasyPlayer.asset(
+                    'corgi-cloud.svga',
                     onLoaded: loaded.add,
                   ),
                 ),
@@ -355,8 +405,8 @@ void main() {
             children: [
               for (var i = 0; i < 2; i++)
                 Expanded(
-                  child: SVGAEasyPlayer(
-                    assetsName: 'kiss.svga',
+                  child: SVGAEasyPlayer.asset(
+                    'kiss.svga',
                     useCache: false,
                     onLoaded: loaded.add,
                   ),
@@ -377,7 +427,7 @@ void main() {
     testWidgets('changing the source replaces the animation', (tester) async {
       final loaded = <MovieEntity>[];
       Widget player(String asset) =>
-          _host(SVGAEasyPlayer(assetsName: asset, onLoaded: loaded.add));
+          _host(SVGAEasyPlayer.asset(asset, onLoaded: loaded.add));
 
       await tester.pumpWidget(player('kiss.svga'));
       await _settleLoad(tester);
@@ -395,7 +445,7 @@ void main() {
     ) async {
       final loaded = <MovieEntity>[];
       Widget player(String asset) =>
-          _host(SVGAEasyPlayer(assetsName: asset, onLoaded: loaded.add));
+          _host(SVGAEasyPlayer.asset(asset, onLoaded: loaded.add));
 
       await tester.pumpWidget(player('corgi-cloud.svga'));
       await tester.pumpWidget(player('kiss.svga'));
@@ -403,6 +453,43 @@ void main() {
 
       expect(loaded, hasLength(1));
       expect(loaded.single.params.frames, 50);
+    });
+
+    testWidgets('keepLastFrame leaves the animation on screen', (tester) async {
+      Future<int> paintsAfterFinish({required bool keepLastFrame}) async {
+        var finished = false;
+        var paints = 0;
+        await tester.pumpWidget(
+          _host(
+            SVGAEasyPlayer.asset(
+              'kiss.svga',
+              key: ValueKey(keepLastFrame),
+              useCache: false,
+              playCount: 1,
+              keepLastFrame: keepLastFrame,
+              onLoaded: (movie) {
+                for (final sprite in movie.sprites) {
+                  movie.dynamicItem.setDynamicDrawer(
+                    (_, _) => paints++,
+                    sprite.imageKey,
+                  );
+                }
+              },
+              onFinished: () => finished = true,
+            ),
+          ),
+        );
+        await _settleLoad(tester);
+        await pumpUntil(tester, () => finished);
+        // Force one more paint of whatever is left on the canvas.
+        paints = 0;
+        tester.renderObject(find.byType(CustomPaint)).markNeedsPaint();
+        await tester.pump();
+        return paints;
+      }
+
+      expect(await paintsAfterFinish(keepLastFrame: true), greaterThan(0));
+      expect(await paintsAfterFinish(keepLastFrame: false), 0);
     });
 
     testWidgets('no source shows nothing and does not throw', (tester) async {

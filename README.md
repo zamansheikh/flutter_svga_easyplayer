@@ -1,28 +1,43 @@
-# flutter_svga_easyplayer
+<h1 align="center">flutter_svga_easyplayer</h1>
 
-[![pub version](https://img.shields.io/pub/v/flutter_svga_easyplayer.svg)](https://pub.dev/packages/flutter_svga_easyplayer)
-[![pub points](https://img.shields.io/pub/points/flutter_svga_easyplayer)](https://pub.dev/packages/flutter_svga_easyplayer/score)
-[![license](https://img.shields.io/github/license/zamansheikh/flutter_svga_easyplayer)](LICENSE)
+<p align="center">
+  <b>SVGA animations in Flutter, in one line.</b><br>
+  Gifts, entry effects, stickers and splash animations that just play,
+  with caching, sound and error handling already done for you.
+</p>
 
-Play SVGA animations in Flutter with one widget. Caching, precaching, sound,
-loading states and typed errors are built in.
+<p align="center">
+  <a href="https://pub.dev/packages/flutter_svga_easyplayer"><img src="https://img.shields.io/pub/v/flutter_svga_easyplayer.svg" alt="pub version"></a>
+  <a href="https://pub.dev/packages/flutter_svga_easyplayer/score"><img src="https://img.shields.io/pub/points/flutter_svga_easyplayer" alt="pub points"></a>
+  <a href="https://pub.dev/packages/flutter_svga_easyplayer/score"><img src="https://img.shields.io/pub/likes/flutter_svga_easyplayer" alt="pub likes"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/zamansheikh/flutter_svga_easyplayer" alt="license"></a>
+</p>
 
-![Ten gift animations playing in a grid](https://raw.githubusercontent.com/zamansheikh/flutter_svga_easyplayer/main/doc/preview.gif)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/zamansheikh/flutter_svga_easyplayer/main/doc/preview.gif" alt="Ten gift and entry animations playing at once" width="720">
+</p>
 
-## Features
+```dart
+SVGAEasyPlayer.network('https://cdn.example.com/gift.svga')
+```
 
-- **One widget.** `SVGAEasyPlayer` downloads, caches, decodes, plays and cleans up.
-- **Nothing fails silently.** Every failure is a typed `SVGAException`, with a placeholder and an error widget to show while loading or when it fails.
-- **Safe caching.** Files are stored only after they decode, written atomically and verified by checksum. A bad entry replaces itself.
-- **Shared decoding.** Players showing the same animation decode it once and share the bitmaps.
-- **Smooth.** Large files decode off the UI thread, and the canvas repaints only when the frame changes.
-- **Light.** The SVGA format is read by the package itself; no protobuf runtime.
+That one line downloads the file, caches it, decodes it, plays it with its
+sound, and frees everything when the widget goes away.
+
+## Why developers pick it
+
+- **It is one line.** No controllers, no `initState`, no `dispose`. Add the widget and it plays.
+- **It stays smooth.** Big animations decode on a background thread, and the screen is redrawn only when the frame actually changes. On the same files it decodes up to 5× faster and paints up to 5.5× faster than version 0.0.7.
+- **It loads once.** Files are saved to disk after the first download, and ten widgets showing the same gift share a single decoded copy in memory.
+- **It never fails silently.** Show a placeholder while loading and a fallback on error. Every failure has a clear type, so a 404 and a slow connection are easy to tell apart.
+- **It cannot be poisoned by a bad download.** A broken or cut-off file is detected, thrown away and fetched again.
+- **It is light.** The SVGA format is read by the package itself, with no protobuf runtime to ship.
 
 ## Install
 
 ```yaml
 dependencies:
-  flutter_svga_easyplayer: ^0.1.0
+  flutter_svga_easyplayer: ^0.2.0
 ```
 
 ```dart
@@ -32,44 +47,77 @@ import 'package:flutter_svga_easyplayer/flutter_svga_easyplayer.dart';
 Animations with sound use [`audioplayers`](https://pub.dev/packages/audioplayers);
 follow its platform setup if you need sound.
 
-## Usage
+## Quick start
 
 ```dart
-// From the network
-const SVGAEasyPlayer(resUrl: 'https://cdn.example.com/gift.svga')
-
-// From an asset
-const SVGAEasyPlayer(assetsName: 'assets/gift.svga')
+SVGAEasyPlayer.network('https://cdn.example.com/gift.svga') // from a URL
+SVGAEasyPlayer.asset('assets/gift.svga')                    // from an asset
 ```
 
-A fuller example:
+How long it plays depends on what you add:
+
+| You write | What happens |
+|---|---|
+| `SVGAEasyPlayer.network(url)` | Repeats forever |
+| `SVGAEasyPlayer.network(url, onFinished: close)` | Plays once, then calls `close` |
+| `SVGAEasyPlayer.network(url, playCount: 3)` | Plays three times, then stops |
+| `SVGAEasyPlayer.network(url, playCount: 3, onFinished: close)` | Plays three times, then calls `close` |
+
+When it stops, the animation disappears. Add `keepLastFrame: true` to leave
+the last frame on screen.
+
+A typical gift effect, with a loading spinner and a fallback:
 
 ```dart
-SVGAEasyPlayer(
-  resUrl: url,
-  loops: 0, // play once
-  fit: BoxFit.cover,
-  volume: 0.5,
+SVGAEasyPlayer.network(
+  gift.url,
   placeholder: const CircularProgressIndicator(),
   errorBuilder: (context, error) => const Icon(Icons.broken_image),
   onFinished: () => Navigator.pop(context),
 )
 ```
 
-| Option | Default | What it does |
-|---|---|---|
-| `resUrl` / `assetsName` | — | Where the animation comes from. |
-| `loops` | `null` | `null` repeats forever, `0` plays once, `n` plays `n + 1` times. |
-| `onFinished` | — | Called when a finite playback ends. |
-| `fit` | `BoxFit.contain` | How the animation fills its box. |
-| `volume` / `isMute` | `1.0` / `false` | Sound level, and mute without losing it. |
-| `placeholder` | nothing | Shown while loading. |
-| `errorBuilder` / `onError` | nothing | Shown, or called, when loading fails. |
-| `onLoaded` | — | Called with the decoded animation before it plays. |
-| `clearsAfterStop` | `true` | Blank the canvas when playback ends; `false` keeps the last frame. |
-| `useCache` | `true` | `false` loads fresh and stores nothing, for this widget only. |
-| `clearCacheOnDispose` | `false` | Delete the cached file when the widget is removed. |
-| `headers` / `timeout` | — / 30 s | For the download. |
+Want to see it running? The [example app](example) is a gift gallery:
+
+```sh
+cd example && flutter run
+```
+
+## Options
+
+**Playback**
+
+| Option | What it does |
+|---|---|
+| `onFinished` | Called when the animation finishes. With this set, it plays once instead of repeating. |
+| `playCount` | How many times to play, when you want more than once: `3` plays three times. |
+| `keepLastFrame` | `true` keeps the last frame on screen when finished. By default the animation disappears. |
+| `fit` | How the animation fills its box. Default `BoxFit.contain`. |
+
+**Sound**
+
+| Option | What it does |
+|---|---|
+| `volume` | Loudness from `0.0` to `1.0`. Default `1.0`. |
+| `muted` | `true` turns the sound off. |
+
+**Loading and errors**
+
+| Option | What it does |
+|---|---|
+| `placeholder` | Widget shown while the animation loads. |
+| `errorBuilder` | Widget shown if loading fails. |
+| `onLoaded` | Called when the animation is ready, just before it plays. |
+| `onError` | Called with the error if loading fails. |
+
+**Network and cache**
+
+| Option | What it does |
+|---|---|
+| `headers` | Extra HTTP headers, such as an authorization token. |
+| `timeout` | How long the download may take. Default 30 seconds. |
+| `useCache` | `false` loads the file fresh every time and stores nothing. Default `true`. |
+| `clearCacheOnDispose` | `true` deletes the downloaded file when the widget is removed. |
 
 ## Errors
 
@@ -153,7 +201,7 @@ await movie.dynamicItem.setImageWithUrl(avatarUrl, 'avatar');
 ```
 
 Players that share a cached animation also share its `dynamicItem`; pass
-`useCache: false` to `SVGAEasyPlayer` when one widget needs its own.
+`useCache: false` to the player when one widget needs its own.
 
 ## Performance
 
@@ -179,9 +227,21 @@ and decoding runs on the main thread.
 
 SVGA 2.x files are supported. Matte layers are not rendered.
 
-## Migrating from 0.0.x
+## Migrating
 
-Widget code keeps working. Three things changed:
+**From 0.1.0.** Old code keeps working, with deprecation hints pointing at
+the clearer names:
+
+| Before | Now |
+|---|---|
+| `SVGAEasyPlayer(resUrl: url)` | `SVGAEasyPlayer.network(url)` |
+| `SVGAEasyPlayer(assetsName: path)` | `SVGAEasyPlayer.asset(path)` |
+| `loops: 0` | `playCount: 1` |
+| `loops: 2` | `playCount: 3` |
+| `isMute: true` | `muted: true` |
+| `clearsAfterStop: false` | `keepLastFrame: true` |
+
+**From 0.0.x.** In addition:
 
 - `MovieEntity` is a plain Dart class, not a protobuf message. `params`,
   `sprites`, `audios`, `dynamicItem`, `autorelease` and `dispose()` are the same.

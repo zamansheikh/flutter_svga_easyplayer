@@ -14,62 +14,183 @@ typedef SVGAErrorWidgetBuilder =
 /// Called when an animation fails to load.
 typedef SVGAErrorCallback = void Function(Object error, StackTrace stackTrace);
 
-/// Loads and plays an SVGA animation from a URL or an asset.
+/// Loads and plays an SVGA animation.
 ///
 /// ```dart
-/// SVGAEasyPlayer(
-///   resUrl: 'https://example.com/gift.svga',
-///   loops: 0,
-///   placeholder: const CircularProgressIndicator(),
-///   errorBuilder: (context, error) => const Icon(Icons.broken_image),
+/// // Loop forever
+/// SVGAEasyPlayer.network('https://example.com/gift.svga')
+///
+/// // Play once, then leave
+/// SVGAEasyPlayer.asset(
+///   'assets/gift.svga',
 ///   onFinished: () => Navigator.pop(context),
 /// )
+///
+/// // Play three times
+/// SVGAEasyPlayer.asset('assets/gift.svga', playCount: 3)
 /// ```
 ///
 /// The widget owns everything it needs: it downloads and caches the file,
 /// shares the decoded animation with any other player showing the same
 /// source, and releases its resources when it is removed from the tree.
 class SVGAEasyPlayer extends StatefulWidget {
-  const SVGAEasyPlayer({
+  /// Plays the animation at [url].
+  const SVGAEasyPlayer.network(
+    String this.url, {
     super.key,
-    this.resUrl,
-    this.assetsName,
-    this.fit = BoxFit.contain,
-    this.loops,
+    this.playCount,
     this.onFinished,
-    this.useCache = true,
-    this.clearCacheOnDispose = false,
-    this.isMute = false,
+    this.keepLastFrame = false,
+    this.fit = BoxFit.contain,
     this.volume = 1.0,
-    this.filterQuality = FilterQuality.low,
-    this.allowDrawingOverflow,
-    this.clearsAfterStop = true,
+    this.muted = false,
     this.placeholder,
     this.errorBuilder,
     this.onLoaded,
     this.onError,
     this.headers,
     this.timeout,
-  });
+    this.useCache = true,
+    this.clearCacheOnDispose = false,
+    this.filterQuality = FilterQuality.low,
+    this.allowDrawingOverflow,
+  }) : asset = null,
+       _finishImpliesOnce = true,
+       assert(playCount == null || playCount > 0);
 
-  /// URL of the animation. Takes precedence over [assetsName].
-  final String? resUrl;
+  /// Plays the animation bundled at the asset path [asset].
+  const SVGAEasyPlayer.asset(
+    String this.asset, {
+    super.key,
+    this.playCount,
+    this.onFinished,
+    this.keepLastFrame = false,
+    this.fit = BoxFit.contain,
+    this.volume = 1.0,
+    this.muted = false,
+    this.placeholder,
+    this.errorBuilder,
+    this.onLoaded,
+    this.onError,
+    this.useCache = true,
+    this.filterQuality = FilterQuality.low,
+    this.allowDrawingOverflow,
+  }) : url = null,
+       headers = null,
+       timeout = null,
+       clearCacheOnDispose = false,
+       _finishImpliesOnce = true,
+       assert(playCount == null || playCount > 0);
 
-  /// Asset path of the animation, used when [resUrl] is `null`.
-  final String? assetsName;
+  /// The original constructor, kept so existing code keeps working.
+  ///
+  /// Prefer [SVGAEasyPlayer.network] and [SVGAEasyPlayer.asset]. The older
+  /// parameter names map onto the current ones:
+  ///
+  /// * `resUrl` → the URL passed to [SVGAEasyPlayer.network]
+  /// * `assetsName` → the path passed to [SVGAEasyPlayer.asset]
+  /// * `loops` → [playCount], which counts plays rather than repeats
+  ///   (`loops: 0` is `playCount: 1`)
+  /// * `isMute` → [muted]
+  /// * `clearsAfterStop: false` → `keepLastFrame: true`
+  const SVGAEasyPlayer({
+    super.key,
+    @Deprecated('Use SVGAEasyPlayer.network(url)') String? resUrl,
+    @Deprecated('Use SVGAEasyPlayer.asset(path)') String? assetsName,
+    @Deprecated('Use playCount, which is loops + 1') int? loops,
+    int? playCount,
+    this.onFinished,
+    bool keepLastFrame = false,
+    @Deprecated('Use keepLastFrame, which is the opposite')
+    bool? clearsAfterStop,
+    this.fit = BoxFit.contain,
+    this.volume = 1.0,
+    bool muted = false,
+    @Deprecated('Use muted') bool? isMute,
+    this.placeholder,
+    this.errorBuilder,
+    this.onLoaded,
+    this.onError,
+    this.headers,
+    this.timeout,
+    this.useCache = true,
+    this.clearCacheOnDispose = false,
+    this.filterQuality = FilterQuality.low,
+    this.allowDrawingOverflow,
+  }) : assert(loops == null || playCount == null, 'Pass playCount only'),
+       assert(loops == null || loops >= 0),
+       assert(playCount == null || playCount > 0),
+       url = resUrl,
+       asset = assetsName,
+       _finishImpliesOnce = false,
+       playCount = playCount ?? (loops == null ? null : loops + 1),
+       muted = isMute ?? muted,
+       keepLastFrame = clearsAfterStop == null
+           ? keepLastFrame
+           : !clearsAfterStop;
+
+  /// URL of the animation, when it comes from the network.
+  final String? url;
+
+  /// Asset path of the animation, when it is bundled with the app.
+  final String? asset;
+
+  /// How many times to play the animation: `1` plays once, `3` plays three
+  /// times.
+  ///
+  /// When left out, the animation repeats forever, unless [onFinished] is
+  /// given, in which case it plays once.
+  final int? playCount;
+
+  /// Called after the last play.
+  ///
+  /// Giving this makes the animation finite: it plays [playCount] times, or
+  /// once if [playCount] is left out.
+  final VoidCallback? onFinished;
+
+  // The original constructor repeated forever when `loops` was left out,
+  // even with an `onFinished`; it keeps doing so.
+  final bool _finishImpliesOnce;
+
+  /// How many plays this widget will make, or `null` for "forever".
+  int? get _plays =>
+      playCount ?? (_finishImpliesOnce && onFinished != null ? 1 : null);
+
+  /// Whether the last frame stays on screen when playback finishes.
+  /// By default the animation disappears.
+  final bool keepLastFrame;
 
   /// How the animation is fitted into the available space.
   final BoxFit fit;
 
-  /// How many times to repeat after the first playback.
-  ///
-  /// * `null` (default): repeat forever.
-  /// * `0`: play once.
-  /// * `n`: play `n + 1` times in total.
-  final int? loops;
+  /// How loud the animation's sound is, from `0.0` to `1.0`.
+  final double volume;
 
-  /// Called once when a finite playback ([loops] is not `null`) completes.
-  final VoidCallback? onFinished;
+  /// Whether the animation's sound is off. [volume] is kept for when it is
+  /// turned back on.
+  final bool muted;
+
+  /// Shown while the animation is loading. Defaults to nothing.
+  final Widget? placeholder;
+
+  /// Builds what is shown when loading fails. Defaults to nothing.
+  final SVGAErrorWidgetBuilder? errorBuilder;
+
+  /// Called when the animation has loaded, just before it starts playing.
+  final ValueChanged<MovieEntity>? onLoaded;
+
+  /// Called when loading fails. When neither this nor [errorBuilder] is
+  /// given, the failure is reported through [FlutterError.reportError] so it
+  /// is not silently lost.
+  final SVGAErrorCallback? onError;
+
+  /// Extra HTTP headers for the download, for example an authorization
+  /// token.
+  final Map<String, String>? headers;
+
+  /// How long the download may take. Defaults to
+  /// [SVGAParser.defaultTimeout].
+  final Duration? timeout;
 
   /// Whether to use the disk cache and the shared in-memory cache.
   ///
@@ -77,15 +198,9 @@ class SVGAEasyPlayer extends StatefulWidget {
   /// alone, and nothing is stored. Other widgets are not affected.
   final bool useCache;
 
-  /// Whether to delete this animation's cached file when the widget is
-  /// disposed. Useful for one-off animations that will not be shown again.
+  /// Whether to delete the downloaded file from the disk cache when this
+  /// widget is removed. Useful for animations that will not be shown again.
   final bool clearCacheOnDispose;
-
-  /// Silences the animation's sound without changing [volume].
-  final bool isMute;
-
-  /// Volume of the animation's sound, from `0.0` to `1.0`.
-  final double volume;
 
   /// Sampling quality used for the animation's bitmaps.
   final FilterQuality filterQuality;
@@ -94,30 +209,20 @@ class SVGAEasyPlayer extends StatefulWidget {
   /// (the default) and `true` allow it; `false` clips to the bounds.
   final bool? allowDrawingOverflow;
 
-  /// Whether the canvas is blanked once a finite playback completes. With
-  /// `false` the last frame stays visible.
-  final bool clearsAfterStop;
+  @Deprecated('Use url')
+  String? get resUrl => url;
 
-  /// Shown while the animation is loading. Defaults to nothing.
-  final Widget? placeholder;
+  @Deprecated('Use asset')
+  String? get assetsName => asset;
 
-  /// Builds what is shown when loading fails. Defaults to nothing.
-  final SVGAErrorWidgetBuilder? errorBuilder;
+  @Deprecated('Use playCount, which is loops + 1')
+  int? get loops => playCount == null ? null : playCount! - 1;
 
-  /// Called when the animation has loaded, just before playback starts.
-  final ValueChanged<MovieEntity>? onLoaded;
+  @Deprecated('Use muted')
+  bool get isMute => muted;
 
-  /// Called when loading fails. When neither this nor [errorBuilder] is
-  /// given, the failure is reported through [FlutterError.reportError] so it
-  /// is not silently lost.
-  final SVGAErrorCallback? onError;
-
-  /// Extra HTTP headers for [resUrl], for example an authorization token.
-  final Map<String, String>? headers;
-
-  /// Download timeout for [resUrl]. Defaults to
-  /// [SVGAParser.defaultTimeout].
-  final Duration? timeout;
+  @Deprecated('Use keepLastFrame, which is the opposite')
+  bool get clearsAfterStop => !keepLastFrame;
 
   @override
   State<SVGAEasyPlayer> createState() => _SVGAEasyPlayerState();
@@ -143,7 +248,7 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
   void initState() {
     super.initState();
     _controller = SVGAAnimationController(vsync: this)
-      ..isMute = widget.isMute
+      ..muted = widget.muted
       ..volume = widget.volume
       ..addStatusListener(_handleStatus);
     _load();
@@ -153,13 +258,13 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
   void didUpdateWidget(covariant SVGAEasyPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     _controller
-      ..isMute = widget.isMute
+      ..muted = widget.muted
       ..volume = widget.volume;
-    if (oldWidget.resUrl != widget.resUrl ||
-        oldWidget.assetsName != widget.assetsName ||
+    if (oldWidget.url != widget.url ||
+        oldWidget.asset != widget.asset ||
         oldWidget.useCache != widget.useCache) {
       _load();
-    } else if (oldWidget.loops != widget.loops &&
+    } else if (oldWidget._plays != widget._plays &&
         _controller.videoItem != null) {
       _play();
     }
@@ -170,7 +275,7 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
     _request++;
     _controller.dispose();
     _releaseShared();
-    final url = widget.resUrl;
+    final url = widget.url;
     if (widget.clearCacheOnDispose && url != null) {
       SVGACache.shared.remove(url);
     }
@@ -182,8 +287,8 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
     _controller.videoItem = null;
     _releaseShared();
 
-    final url = widget.resUrl;
-    final asset = widget.assetsName;
+    final url = widget.url;
+    final asset = widget.asset;
     if (url == null && asset == null) {
       _loading = false;
       _error = null;
@@ -248,10 +353,8 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
               library: 'flutter_svga_easyplayer',
               context: ErrorDescription('while loading an SVGA animation'),
               informationCollector: () => [
-                if (widget.resUrl != null)
-                  StringProperty('resUrl', widget.resUrl),
-                if (widget.assetsName != null)
-                  StringProperty('assetsName', widget.assetsName),
+                if (widget.url != null) StringProperty('url', widget.url),
+                if (widget.asset != null) StringProperty('asset', widget.asset),
               ],
             ),
           );
@@ -272,7 +375,7 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
 
   void _play() {
     _completedPlays = 0;
-    if (widget.loops == null) {
+    if (widget._plays == null) {
       _controller.repeat();
     } else {
       _controller.forward(from: 0.0);
@@ -281,14 +384,14 @@ class _SVGAEasyPlayerState extends State<SVGAEasyPlayer>
 
   void _handleStatus(AnimationStatus status) {
     if (status != AnimationStatus.completed) return;
-    final loops = widget.loops;
-    if (loops == null) return;
+    final playCount = widget._plays;
+    if (playCount == null) return;
     _completedPlays++;
-    if (_completedPlays <= loops) {
+    if (_completedPlays < playCount) {
       _controller.forward(from: 0.0);
       return;
     }
-    if (widget.clearsAfterStop) _controller.clear();
+    if (!widget.keepLastFrame) _controller.clear();
     widget.onFinished?.call();
   }
 

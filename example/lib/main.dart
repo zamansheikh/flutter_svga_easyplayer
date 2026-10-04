@@ -166,9 +166,9 @@ class _GiftTile extends StatelessWidget {
         child: Column(
           children: [
             Expanded(
-              child: SVGAEasyPlayer(
-                assetsName: assetOf(gift),
-                isMute: true,
+              child: SVGAEasyPlayer.asset(
+                assetOf(gift),
+                muted: true,
                 allowDrawingOverflow: false,
                 placeholder: const Center(child: CircularProgressIndicator()),
                 errorBuilder: (_, _) =>
@@ -199,20 +199,37 @@ class GiftScreen extends StatefulWidget {
 }
 
 class _GiftScreenState extends State<GiftScreen> {
-  /// `null` loops forever, `0` plays once, `2` plays three times.
-  int? _loops;
+  /// How many times to play; `null` repeats forever.
+  int? _playCount;
   bool _muted = false;
 
   /// Changes whenever playback should start over.
   int _run = 0;
 
-  void _setLoops(int? loops) => setState(() {
-    _loops = loops;
+  void _setPlayCount(int? playCount) => setState(() {
+    _playCount = playCount;
     _run++;
   });
 
+  Widget _error(BuildContext context, Object error) => Padding(
+    padding: const EdgeInsets.all(24),
+    child: Text(switch (error) {
+      SVGANetworkException(:final statusCode?) =>
+        'The server answered with HTTP $statusCode.',
+      SVGANetworkException() => 'Could not reach the server.',
+      SVGATimeoutException() => 'The download took too long.',
+      SVGAFormatException() => 'That is not an SVGA 2.x file.',
+      _ => 'Could not load the animation.',
+    }, textAlign: TextAlign.center),
+  );
+
+  void _finished() => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(const SnackBar(content: Text('Finished')));
+
   @override
   Widget build(BuildContext context) {
+    final asset = widget.asset;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -225,29 +242,27 @@ class _GiftScreenState extends State<GiftScreen> {
         ],
       ),
       body: Center(
-        child: SVGAEasyPlayer(
-          key: ValueKey(_run),
-          assetsName: widget.asset,
-          resUrl: widget.url,
-          loops: _loops,
-          isMute: _muted,
-          clearsAfterStop: false,
-          placeholder: const CircularProgressIndicator(),
-          errorBuilder: (context, error) => Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(switch (error) {
-              SVGANetworkException(:final statusCode?) =>
-                'The server answered with HTTP $statusCode.',
-              SVGANetworkException() => 'Could not reach the server.',
-              SVGATimeoutException() => 'The download took too long.',
-              SVGAFormatException() => 'That is not an SVGA 2.x file.',
-              _ => 'Could not load the animation.',
-            }, textAlign: TextAlign.center),
-          ),
-          onFinished: () => ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Finished'))),
-        ),
+        child: asset != null
+            ? SVGAEasyPlayer.asset(
+                asset,
+                key: ValueKey(_run),
+                playCount: _playCount,
+                muted: _muted,
+                keepLastFrame: true,
+                placeholder: const CircularProgressIndicator(),
+                errorBuilder: _error,
+                onFinished: _finished,
+              )
+            : SVGAEasyPlayer.network(
+                widget.url!,
+                key: ValueKey(_run),
+                playCount: _playCount,
+                muted: _muted,
+                keepLastFrame: true,
+                placeholder: const CircularProgressIndicator(),
+                errorBuilder: _error,
+                onFinished: _finished,
+              ),
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
@@ -255,11 +270,11 @@ class _GiftScreenState extends State<GiftScreen> {
           child: SegmentedButton<int?>(
             segments: const [
               ButtonSegment(value: null, label: Text('Loop')),
-              ButtonSegment(value: 0, label: Text('Once')),
-              ButtonSegment(value: 2, label: Text('3 times')),
+              ButtonSegment(value: 1, label: Text('Once')),
+              ButtonSegment(value: 3, label: Text('3 times')),
             ],
-            selected: {_loops},
-            onSelectionChanged: (selection) => _setLoops(selection.single),
+            selected: {_playCount},
+            onSelectionChanged: (selection) => _setPlayCount(selection.single),
           ),
         ),
       ),

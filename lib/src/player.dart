@@ -31,7 +31,7 @@ class SVGAAnimationController extends AnimationController {
 
   int _lastFrame = -1;
   bool _cleared = false;
-  bool _isMute = false;
+  bool _muted = false;
   double _volume = 1.0;
   bool _isDisposed = false;
 
@@ -85,13 +85,18 @@ class SVGAAnimationController extends AnimationController {
   /// Total number of frames; `0` when there is no movie.
   int get frames => _videoItem?.params.frames ?? 0;
 
-  /// Whether sound is silenced. The [volume] setting is kept.
-  bool get isMute => _isMute;
-  set isMute(bool value) {
-    if (_isMute == value) return;
-    _isMute = value;
+  /// Whether the sound is off. The [volume] setting is kept.
+  bool get muted => _muted;
+  set muted(bool value) {
+    if (_muted == value) return;
+    _muted = value;
     _applyVolume();
   }
+
+  @Deprecated('Use muted')
+  bool get isMute => muted;
+  @Deprecated('Use muted')
+  set isMute(bool value) => muted = value;
 
   /// Volume of the animation's sound, from `0.0` to `1.0`.
   double get volume => _volume;
@@ -102,7 +107,7 @@ class SVGAAnimationController extends AnimationController {
     _applyVolume();
   }
 
-  double get _effectiveVolume => _isMute ? 0.0 : _volume;
+  double get _effectiveVolume => _muted ? 0.0 : _volume;
 
   void _applyVolume() {
     final volume = _effectiveVolume;
