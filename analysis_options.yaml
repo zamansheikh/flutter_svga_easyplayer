@@ -8,6 +8,7 @@ include: package:lints/recommended.yaml
 # Exclude generated protobuf files from analysis
 analyzer:
   exclude:
+    - build/**
     # - lib/src/proto/*.pb.dart
     # - lib/src/proto/*.pbenum.dart
     # - lib/src/proto/*.pbjson.dart
