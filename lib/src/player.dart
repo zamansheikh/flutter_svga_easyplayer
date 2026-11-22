@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import 'audio.dart';
+import 'dynamic_entity.dart';
 import 'model.dart';
 
 /// Drives playback of one [MovieEntity].
@@ -337,63 +338,143 @@ class _SVGAPainter extends CustomPainter {
     canvas.restore();
   }
 
+  // Paints of the two layers a masked run is drawn through.
+  static final Paint _layerPaint = Paint();
+  static final Paint _maskPaint = Paint()..blendMode = BlendMode.dstIn;
+
   void _drawSprites(Canvas canvas, MovieEntity movie, int frameIndex) {
     final dynamicItem = movie.dynamicItem;
-    final hasDynamics = !dynamicItem.isEmpty;
+    final dynamics = dynamicItem.isEmpty ? null : dynamicItem;
 
-    for (final sprite in movie.sprites) {
-      final key = sprite.imageKey;
-      if (key.isEmpty || frameIndex >= sprite.frames.length) continue;
-      final frame = sprite.frames[frameIndex];
-      if (!frame.isVisible) continue;
-      if (hasDynamics && dynamicItem.dynamicHidden[key] == true) continue;
-
-      final transform = frame.transform;
-      final clip = frame.clip;
-      final saved = transform != null || clip != null;
-      if (saved) canvas.save();
-      if (transform != null) _applyTransform(canvas, transform);
-      if (clip != null) canvas.clipPath(clip.path);
-
-      final alpha = (frame.alpha * 255).toInt().clamp(0, 255);
-      final image =
-          (hasDynamics ? dynamicItem.dynamicImages[key] : null) ??
-          movie.bitmapCache[key];
-      if (image != null && frame.width > 0 && frame.height > 0) {
-        if (_bitmapAlpha != alpha) {
-          _bitmapAlpha = alpha;
-          _bitmapPaint.color = Color.fromARGB(alpha, 0, 0, 0);
-        }
-        canvas.drawImageRect(
-          image,
-          Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-          Rect.fromLTWH(0, 0, frame.width, frame.height),
-          _bitmapPaint,
-        );
-        if (hasDynamics) {
-          final text = dynamicItem.dynamicText[key];
-          if (text != null) {
-            text.paint(
-              canvas,
-              Offset(
-                (frame.width - text.width) / 2,
-                (frame.height - text.height) / 2,
-              ),
-            );
-          }
-        }
+    final steps = _DrawPlan.of(movie).steps;
+    if (steps == null) {
+      for (final sprite in movie.sprites) {
+        _drawSprite(canvas, movie, sprite, frameIndex, dynamics);
       }
-
-      final shapes = frame.shapes;
-      for (var i = 0; i < shapes.length; i++) {
-        _drawShape(canvas, shapes[i], alpha);
-      }
-
-      if (hasDynamics) {
-        dynamicItem.dynamicDrawer[key]?.call(canvas, frameIndex);
-      }
-      if (saved) canvas.restore();
+      return;
     }
+    for (final step in steps) {
+      switch (step) {
+        case final SpriteEntity sprite:
+          _drawSprite(canvas, movie, sprite, frameIndex, dynamics);
+        case final _MaskedRun run:
+          _drawMaskedRun(canvas, movie, run, frameIndex, dynamics);
+      }
+    }
+  }
+
+  /// Draws [run] into a layer of its own and keeps only the parts its mask
+  /// covers, scaled by the mask's opacity on this frame.
+  void _drawMaskedRun(
+    Canvas canvas,
+    MovieEntity movie,
+    _MaskedRun run,
+    int frameIndex,
+    SVGADynamicEntity? dynamics,
+  ) {
+    final mask = run.mask;
+    if (frameIndex >= mask.frames.length ||
+        !mask.frames[frameIndex].isVisible) {
+      return;
+    }
+    final sprites = run.sprites;
+    var anyShown = false;
+    for (var i = 0; i < sprites.length && !anyShown; i++) {
+      anyShown = _isShown(sprites[i], frameIndex, dynamics);
+    }
+    if (!anyShown) return;
+
+    canvas.saveLayer(null, _layerPaint);
+    for (var i = 0; i < sprites.length; i++) {
+      _drawSprite(canvas, movie, sprites[i], frameIndex, dynamics);
+    }
+    // The mask is drawn normally into a layer of its own, which is then
+    // composited with dstIn as a whole. Drawing the mask with dstIn directly
+    // would only affect the pixels it covers and leave the content outside
+    // it untouched.
+    canvas.saveLayer(null, _maskPaint);
+    _drawSprite(canvas, movie, mask, frameIndex, null, run.maskBitmapKey);
+    canvas.restore();
+    canvas.restore();
+  }
+
+  static bool _isShown(
+    SpriteEntity sprite,
+    int frameIndex,
+    SVGADynamicEntity? dynamics,
+  ) =>
+      frameIndex < sprite.frames.length &&
+      sprite.frames[frameIndex].isVisible &&
+      dynamics?.dynamicHidden[sprite.imageKey] != true;
+
+  /// Draws one sprite as it is on [frameIndex]. A sprite with an empty image
+  /// key has no bitmap, but its shapes are drawn.
+  ///
+  /// [fallbackBitmapKey] is a second key to look the bitmap up under; masks
+  /// use it because files store a mask's bitmap either under the sprite's
+  /// own `name.matte` key or under `name`.
+  void _drawSprite(
+    Canvas canvas,
+    MovieEntity movie,
+    SpriteEntity sprite,
+    int frameIndex,
+    SVGADynamicEntity? dynamics, [
+    String? fallbackBitmapKey,
+  ]) {
+    final key = sprite.imageKey;
+    if (frameIndex >= sprite.frames.length) return;
+    final frame = sprite.frames[frameIndex];
+    if (!frame.isVisible) return;
+    if (dynamics != null && dynamics.dynamicHidden[key] == true) return;
+
+    final transform = frame.transform;
+    final clip = frame.clip;
+    final saved = transform != null || clip != null;
+    if (saved) canvas.save();
+    if (transform != null) _applyTransform(canvas, transform);
+    if (clip != null) canvas.clipPath(clip.path);
+
+    final alpha = (frame.alpha * 255).toInt().clamp(0, 255);
+    final image =
+        dynamics?.dynamicImages[key] ??
+        movie.bitmapCache[key] ??
+        (fallbackBitmapKey == null
+            ? null
+            : movie.bitmapCache[fallbackBitmapKey]);
+    if (image != null && frame.width > 0 && frame.height > 0) {
+      if (_bitmapAlpha != alpha) {
+        _bitmapAlpha = alpha;
+        _bitmapPaint.color = Color.fromARGB(alpha, 0, 0, 0);
+      }
+      canvas.drawImageRect(
+        image,
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+        Rect.fromLTWH(0, 0, frame.width, frame.height),
+        _bitmapPaint,
+      );
+      if (dynamics != null) {
+        final text = dynamics.dynamicText[key];
+        if (text != null) {
+          text.paint(
+            canvas,
+            Offset(
+              (frame.width - text.width) / 2,
+              (frame.height - text.height) / 2,
+            ),
+          );
+        }
+      }
+    }
+
+    final shapes = frame.shapes;
+    for (var i = 0; i < shapes.length; i++) {
+      _drawShape(canvas, shapes[i], alpha);
+    }
+
+    if (dynamics != null) {
+      dynamics.dynamicDrawer[key]?.call(canvas, frameIndex);
+    }
+    if (saved) canvas.restore();
   }
 
   void _drawShape(Canvas canvas, ShapeEntity shape, int frameAlpha) {
@@ -502,4 +583,81 @@ class _SVGAPainter extends CustomPainter {
       oldDelegate.fit != fit ||
       oldDelegate.filterQuality != filterQuality ||
       oldDelegate.clipRect != clipRect;
+}
+
+/// The order a movie's sprites are drawn in once masks are taken into
+/// account. Worked out on the first paint of a movie and kept with it.
+///
+/// The rules follow svga-studio's web renderer:
+///
+/// * a sprite whose image key ends in `.matte` is a mask and is never drawn
+///   on its own;
+/// * sprites next to each other with the same `matteKey`, naming a mask in
+///   the file, form a run that is drawn through that mask;
+/// * a `matteKey` that names no mask in the file is ignored.
+final class _DrawPlan {
+  const _DrawPlan(this.steps);
+
+  static const _DrawPlan unmasked = _DrawPlan(null);
+  static final Expando<_DrawPlan> _plans = Expando('SVGA draw plan');
+
+  /// Each entry is a [SpriteEntity] or a [_MaskedRun]; `null` when the
+  /// movie has no masks and every sprite is drawn in order.
+  final List<Object>? steps;
+
+  static _DrawPlan of(MovieEntity movie) =>
+      _plans[movie] ??= _build(movie.sprites);
+
+  static bool _isMask(SpriteEntity sprite) =>
+      sprite.imageKey.endsWith('.matte');
+
+  static _DrawPlan _build(List<SpriteEntity> sprites) {
+    final masks = <String, SpriteEntity>{
+      for (final sprite in sprites)
+        if (_isMask(sprite)) sprite.imageKey: sprite,
+    };
+    if (masks.isEmpty) return unmasked;
+
+    final steps = <Object>[];
+    var i = 0;
+    while (i < sprites.length) {
+      final sprite = sprites[i];
+      if (_isMask(sprite)) {
+        i++;
+        continue;
+      }
+      final mask = masks[sprite.matteKey];
+      if (mask == null) {
+        steps.add(sprite);
+        i++;
+        continue;
+      }
+      final key = sprite.matteKey;
+      final run = <SpriteEntity>[];
+      while (i < sprites.length && sprites[i].matteKey == key) {
+        if (!_isMask(sprites[i])) run.add(sprites[i]);
+        i++;
+      }
+      steps.add(
+        _MaskedRun(
+          run,
+          mask,
+          mask.imageKey.substring(0, mask.imageKey.length - '.matte'.length),
+        ),
+      );
+    }
+    return _DrawPlan(steps);
+  }
+}
+
+/// Sprites drawn together through one mask.
+final class _MaskedRun {
+  const _MaskedRun(this.sprites, this.mask, this.maskBitmapKey);
+
+  final List<SpriteEntity> sprites;
+  final SpriteEntity mask;
+
+  /// The mask's image key without `.matte`, where some files keep its
+  /// bitmap.
+  final String maskBitmapKey;
 }

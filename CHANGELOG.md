@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- Masks (`matteKey`) are applied. A sprite whose image key ends in `.matte`
+  is a mask and is no longer drawn on its own; sprites next to each other
+  that name the same mask are drawn in a layer of their own and cut to the
+  mask's shape and opacity, as SVGAPlayer-Web does. A run is skipped on
+  frames where its mask is fully transparent.
+- Sprites with an empty image key have their vector shapes drawn, as in
+  SVGAPlayer-Web. They were skipped before.
+
 ## [0.2.0] - 2026-10-05
 
 Clearer names for `SVGAEasyPlayer`. Existing code keeps working; the old

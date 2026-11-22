@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -45,6 +46,50 @@ Future<MovieEntity> _decode(WidgetTester tester, String name) async {
   return (await tester.runAsync(
     () => SVGAParser.shared.decodeFromBuffer(bytes),
   ))!;
+}
+
+Future<MovieEntity> _decodeBytes(WidgetTester tester, Uint8List bytes) async =>
+    (await tester.runAsync(() => SVGAParser.shared.decodeFromBuffer(bytes)))!;
+
+/// Shows [movie] at 100×100 and returns a reader for the RGBA of the pixel
+/// at (`x`, `y`) on a given frame. Pixels are premultiplied.
+Future<Future<List<int>> Function(int frame, int x, int y)> _show(
+  WidgetTester tester,
+  MovieEntity movie,
+) async {
+  final controller = SVGAAnimationController(vsync: tester)..videoItem = movie;
+  addTearDown(controller.dispose);
+  final key = GlobalKey();
+  await tester.pumpWidget(
+    Directionality(
+      textDirection: TextDirection.ltr,
+      child: Center(
+        child: RepaintBoundary(
+          key: key,
+          child: SizedBox(
+            width: 100,
+            height: 100,
+            child: SVGAImage(controller, clearsAfterStop: false),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  return (frame, x, y) async {
+    controller.value = (frame + 0.5) / controller.frames;
+    await tester.pump();
+    final boundary =
+        key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final data = (await tester.runAsync(() async {
+      final image = await boundary.toImage();
+      final bytes = await image.toByteData();
+      image.dispose();
+      return bytes!;
+    }))!;
+    final offset = (y * 100 + x) * 4;
+    return [for (var i = 0; i < 4; i++) data.getUint8(offset + i)];
+  };
 }
 
 void main() {
@@ -137,44 +182,10 @@ void main() {
     });
 
     testWidgets('draws vector shapes in their colours', (tester) async {
-      final movie = (await tester.runAsync(
-        () => SVGAParser.shared.decodeFromBuffer(vectorMovie()),
-      ))!;
-      final controller = SVGAAnimationController(vsync: tester)
-        ..videoItem = movie;
-      addTearDown(controller.dispose);
-      final key = GlobalKey();
-      await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: Center(
-            child: RepaintBoundary(
-              key: key,
-              child: SizedBox(
-                width: 100,
-                height: 100,
-                child: SVGAImage(controller, clearsAfterStop: false),
-              ),
-            ),
-          ),
-        ),
+      final pixel = await _show(
+        tester,
+        await _decodeBytes(tester, vectorMovie()),
       );
-
-      /// RGBA of the pixel at ([x], [y]) on the given frame.
-      Future<List<int>> pixel(int frame, int x, int y) async {
-        controller.value = (frame + 0.5) / controller.frames;
-        await tester.pump();
-        final boundary =
-            key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-        final data = (await tester.runAsync(() async {
-          final image = await boundary.toImage();
-          final bytes = await image.toByteData();
-          image.dispose();
-          return bytes!;
-        }))!;
-        final offset = (y * 100 + x) * 4;
-        return [for (var i = 0; i < 4; i++) data.getUint8(offset + i)];
-      }
 
       // Frame 0: red rect on the left half only.
       expect(await pixel(0, 25, 50), [255, 0, 0, 255]);
@@ -188,6 +199,79 @@ void main() {
       expect(await pixel(3, 25, 50), [0, 0, 0, 0]);
       expect(await pixel(3, 90, 10), [0, 0, 0, 0]);
     });
+
+    testWidgets('draws a run of sprites through its mask', (tester) async {
+      final pixel = await _show(
+        tester,
+        await _decodeBytes(tester, vectorMaskMovie()),
+      );
+
+      // Frame 0: both sprites of the run show through either bar of the
+      // vector mask, and the mask itself, drawn after them, never shows.
+      expect(await pixel(0, 15, 25), [255, 0, 0, 255]);
+      expect(await pixel(0, 85, 25), [255, 0, 0, 255]);
+      expect(await pixel(0, 15, 75), [0, 0, 255, 255]);
+      expect(await pixel(0, 85, 75), [0, 0, 255, 255]);
+      // Between the bars the run is cut away.
+      expect(await pixel(0, 50, 25), [0, 0, 0, 0]);
+      expect(await pixel(0, 50, 75), [0, 0, 0, 0]);
+      // A matteKey naming no mask in the file draws unmasked.
+      expect(await pixel(0, 50, 10), [255, 255, 0, 255]);
+
+      // Frame 1: the mask is fully transparent, so the run is not drawn.
+      expect(await pixel(1, 15, 25), [0, 0, 0, 0]);
+      expect(await pixel(1, 85, 75), [0, 0, 0, 0]);
+      expect(await pixel(1, 50, 10), [255, 255, 0, 255]);
+
+      // Frame 2: the mask's opacity scales the run (pixels are
+      // premultiplied).
+      final half = await pixel(2, 15, 25);
+      expect(half[0], closeTo(128, 2));
+      expect(half[1], 0);
+      expect(half[2], 0);
+      expect(half[3], closeTo(128, 2));
+    });
+
+    testWidgets('draws the shapes of a sprite with no image key', (
+      tester,
+    ) async {
+      final pixel = await _show(
+        tester,
+        await _decodeBytes(tester, vectorMaskMovie()),
+      );
+      for (var frame = 0; frame < 3; frame++) {
+        expect(await pixel(frame, 50, 50), [0, 255, 0, 255]);
+      }
+    });
+
+    for (final bitmapKey in ['photo', 'photo.matte']) {
+      testWidgets('a bitmap mask stored as "$bitmapKey" hides everything '
+          'outside it', (tester) async {
+        final png = (await tester.runAsync(() async {
+          final recorder = ui.PictureRecorder();
+          Canvas(recorder).drawRect(
+            const Rect.fromLTWH(0, 0, 4, 4),
+            Paint()..color = const Color(0xFFFFFFFF),
+          );
+          final image = await recorder.endRecording().toImage(4, 4);
+          final data = await image.toByteData(format: ui.ImageByteFormat.png);
+          image.dispose();
+          return data!.buffer.asUint8List();
+        }))!;
+        final pixel = await _show(
+          tester,
+          await _decodeBytes(
+            tester,
+            bitmapMaskMovie(png, bitmapKey: bitmapKey),
+          ),
+        );
+
+        // The mask's bitmap covers the left half only; the right half of
+        // the run lies outside it and must be cut away too.
+        expect(await pixel(0, 25, 50), [255, 0, 0, 255]);
+        expect(await pixel(0, 75, 50), [0, 0, 0, 0]);
+      });
+    }
 
     testWidgets('takes no space without a movie', (tester) async {
       final controller = SVGAAnimationController(vsync: tester);
