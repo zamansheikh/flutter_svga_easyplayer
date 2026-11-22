@@ -37,7 +37,7 @@ sound, and frees everything when the widget goes away.
 
 ```yaml
 dependencies:
-  flutter_svga_easyplayer: ^0.2.0
+  flutter_svga_easyplayer: ^0.2.1
 ```
 
 ```dart
